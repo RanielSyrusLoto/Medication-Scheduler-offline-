@@ -6,6 +6,19 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from database.db_manager import DatabaseManager
 
+def _format_time_am_pm(time_val):
+    if not time_val:
+        return ""
+    s = str(time_val).strip()
+    if "AM" in s.upper() or "PM" in s.upper():
+        return s
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(s[:5], "%H:%M")
+        return dt.strftime("%I:%M %p")
+    except Exception:
+        return s
+
 class NotificationWorker:
     _instance = None
     _lock = threading.Lock()
@@ -159,19 +172,6 @@ class NotificationWorker:
 
     def _check_offline_popups(self):
         pass
-
-def _format_time_am_pm(time_val):
-    if not time_val:
-        return ""
-    s = str(time_val).strip()
-    if "AM" in s.upper() or "PM" in s.upper():
-        return s
-    try:
-        from datetime import datetime
-        dt = datetime.strptime(s[:5], "%H:%M")
-        return dt.strftime("%I:%M %p")
-    except Exception:
-        return s
 
     def _generate_email_html(self, user_name, due_meds, today_str):
         med_rows = ""
