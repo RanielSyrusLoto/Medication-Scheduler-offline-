@@ -314,18 +314,18 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-5 sm:space-y-6 overflow-y-auto custom-scrollbar h-full transition-colors duration-200">
+    <div className="p-4 sm:p-6 lg:p-7 space-y-4 sm:space-y-5 h-full flex flex-col overflow-hidden transition-colors duration-200">
       {saveStatus && (
-        <div className="p-3 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-xs font-medium animate-fadeIn flex items-center gap-2">
+        <div className="p-3 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-xs font-medium animate-fadeIn flex items-center gap-2 shrink-0">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{saveStatus}</span>
         </div>
       )}
 
       {/* Main Settings Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Left Form Settings (8 cols) */}
-        <div className="lg:col-span-8 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 min-h-0 overflow-hidden">
+        {/* Left Form Settings (8 cols) - Scrollable */}
+        <div className="lg:col-span-8 space-y-5 h-full overflow-y-auto custom-scrollbar pr-1">
           {/* 1. APPLICATION SETTINGS CARD */}
           <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-sm space-y-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#1E2837] dark:text-white pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345]">
@@ -698,22 +698,58 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
           </div>
         </div>
 
-        {/* Right Artwork Panel (4 cols) matching Reference Image */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-sm overflow-hidden flex flex-col items-center justify-center text-center space-y-4">
-          <div className="w-full h-64 sm:h-72 md:h-80 lg:h-96 xl:h-[420px] 2xl:h-[480px] rounded-2xl overflow-hidden relative shadow-sm">
-            <img
-              src="/assets/side_card_art.jpg"
-              alt="Healthcare botanical artwork"
-              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-            />
+        {/* RIGHT COLUMN: FIXED PICTURE & SYSTEM GUIDELINES (Responsive Desktop Panel, Non-Scrollable) */}
+        <div className="lg:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
+          {/* Card 1: Healthcare Artwork & Quote (Non-Scrollable, Auto-Fit) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center flex-1 min-h-0 justify-between overflow-hidden shrink-0">
+            <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative shadow-sm max-h-[190px] sm:max-h-[220px] 2xl:max-h-[260px] mb-2">
+              <img
+                src="/assets/side_card_art.jpg"
+                alt="Healthcare botanical artwork"
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex items-end p-3">
+                <span className="text-white text-[11px] font-semibold drop-shadow-md">
+                  System Care & Routine
+                </span>
+              </div>
+            </div>
+
+            <div className="shrink-0 space-y-0.5">
+              <p className="text-xs font-bold text-[#2E7D7E] dark:text-[#2dd4bf] font-serif italic">
+                Your health, our priority ♡
+              </p>
+              <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8]">
+                Smart Medication Scheduler v{appVersion}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold text-[#2E7D7E] dark:text-[#2dd4bf] font-serif italic">
-              Your health, our priority ♡
-            </p>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-1">
-              Smart Medication Scheduler v{appVersion}
-            </p>
+
+          {/* Card 2: System & Notification Guidelines (Non-Scrollable Guidelines) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2 shrink-0">
+            <div className="flex items-center gap-2 pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+              <div className="w-6 h-6 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center">
+                <ShieldCheck className="w-3.5 h-3.5" />
+              </div>
+              <h4 className="text-xs font-bold text-[#1E2837] dark:text-white">
+                Settings Guidelines
+              </h4>
+            </div>
+
+            <ul className="text-[11px] text-[#64748B] dark:text-[#859ba8] space-y-1.5 leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
+                <span>Keep desktop notifications turned on for popup alerts.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
+                <span>Verify Gmail to receive online email reminders on mobile.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
+                <span>Check for updates regularly to obtain security and feature patches.</span>
+              </li>
+            </ul>
           </div>
         </div>
       </div>

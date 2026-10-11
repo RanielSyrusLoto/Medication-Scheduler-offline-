@@ -505,34 +505,36 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
         )}
         </div>
 
-        {/* RIGHT COLUMN: FIXED PICTURE & INVENTORY GUIDELINES (Responsive Desktop Panel) */}
-        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col space-y-4 shrink-0 h-full overflow-y-auto custom-scrollbar pr-0.5">
-          {/* Card 1: Medical Stock Visual & Quote Card (Fixed) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm flex flex-col items-center text-center shrink-0">
-            <div className="w-full h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 2xl:h-80 rounded-2xl overflow-hidden relative mb-3 sm:mb-4 shadow-sm">
+        {/* RIGHT COLUMN: FIXED PICTURE & INVENTORY GUIDELINES (Responsive Desktop Panel, Non-Scrollable) */}
+        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
+          {/* Card 1: Medical Stock Visual & Quote Card (Non-Scrollable, Auto-Fit) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center flex-1 min-h-0 justify-between overflow-hidden shrink-0">
+            <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative shadow-sm max-h-[190px] sm:max-h-[220px] 2xl:max-h-[260px] mb-2">
               <img
                 src="/assets/medication_stock_art.jpg"
                 alt="Prescription stock and pharmacy supplies"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-3.5 sm:p-4">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-3">
                 <span className="text-white text-[11px] font-semibold drop-shadow-md">
                   Prescription Stock & Inventory
                 </span>
               </div>
             </div>
 
-            <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
-              Stock Well, Never Miss a Dose ♡
-            </h3>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-1 leading-relaxed">
-              Keep prescriptions organized and monitor your refill thresholds before supply runs out.
-            </p>
+            <div className="shrink-0 space-y-0.5">
+              <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
+                Stock Well, Never Miss a Dose ♡
+              </h3>
+              <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] leading-relaxed">
+                Keep prescriptions organized and monitor your refill thresholds in advance.
+              </p>
+            </div>
           </div>
 
-          {/* Card 2: Inventory Safety & Organization Guidelines (Fixed) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm space-y-2.5 shrink-0">
-            <div className="flex items-center gap-2 pb-2 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+          {/* Card 2: Inventory Safety & Organization Guidelines (Non-Scrollable Guidelines) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2 shrink-0">
+            <div className="flex items-center gap-2 pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               <div className="w-6 h-6 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5" />
               </div>
@@ -540,8 +542,8 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
                 Inventory Guidelines
               </h4>
             </div>
-            <ul className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] space-y-2 list-disc list-inside leading-relaxed">
-              <li>Store medications in a cool, dry place away from direct heat.</li>
+            <ul className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] space-y-1.5 list-disc list-inside leading-relaxed">
+              <li>Store medications in a cool, dry place away from heat.</li>
               <li>Always check expiration dates before restocking inventory.</li>
               <li>Keep original packaging or clear labels for dosage safety.</li>
               <li>Refill your prescription when supply reaches 25% or less.</li>

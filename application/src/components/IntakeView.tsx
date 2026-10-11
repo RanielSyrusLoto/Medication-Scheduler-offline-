@@ -399,34 +399,36 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
           )}
         </div>
 
-        {/* RIGHT COLUMN: FIXED PICTURE & GUIDELINES (Responsive Desktop Panel) */}
-        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col space-y-4 shrink-0 h-full overflow-y-auto custom-scrollbar pr-0.5">
-          {/* Card 1: Medical Visual & Better Health Quote Card (Fixed) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm flex flex-col items-center text-center shrink-0">
-            <div className="w-full h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 2xl:h-80 rounded-2xl overflow-hidden relative mb-3 sm:mb-4 shadow-sm">
+        {/* RIGHT COLUMN: FIXED PICTURE & GUIDELINES (Responsive Desktop Panel, Non-Scrollable) */}
+        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
+          {/* Card 1: Medical Visual & Better Health Quote Card (Non-Scrollable, Auto-Fit) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center flex-1 min-h-0 justify-between overflow-hidden shrink-0">
+            <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative shadow-sm max-h-[190px] sm:max-h-[220px] 2xl:max-h-[260px] mb-2">
               <img
                 src="/assets/side_card_art.jpg"
                 alt="Medication scheduler photography"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex items-end p-3.5 sm:p-4">
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex items-end p-3">
                 <span className="text-white text-[11px] font-semibold drop-shadow-md">
                   Prescription Care & Routine
                 </span>
               </div>
             </div>
 
-            <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
-              Better Health, Brighter Future ♡
-            </h3>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-1 leading-relaxed">
-              Taking your doses at the same time each day builds a strong therapeutic routine.
-            </p>
+            <div className="shrink-0 space-y-0.5">
+              <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
+                Better Health, Brighter Future ♡
+              </h3>
+              <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] leading-relaxed">
+                Taking your doses at the same time each day builds a strong therapeutic routine.
+              </p>
+            </div>
           </div>
 
-          {/* Card 2: Hydration & Medication Tip Card (Fixed) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm space-y-2.5 shrink-0">
-            <div className="flex items-center gap-2 pb-2 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+          {/* Card 2: Hydration & Medication Tip Card (Non-Scrollable Guidelines) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2 shrink-0">
+            <div className="flex items-center gap-2 pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
                 <Droplets className="w-3.5 h-3.5" />
               </div>
@@ -435,10 +437,10 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
               </h4>
             </div>
 
-            <ul className="text-[11px] text-[#64748B] dark:text-[#859ba8] space-y-2 leading-relaxed">
+            <ul className="text-[11px] text-[#64748B] dark:text-[#859ba8] space-y-1.5 leading-relaxed">
               <li className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
-                <span>Drink a full glass of water with each scheduled tablet or capsule.</span>
+                <span>Drink a full glass of water with each scheduled dose.</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
