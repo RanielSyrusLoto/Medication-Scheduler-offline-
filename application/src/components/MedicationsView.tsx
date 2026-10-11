@@ -326,8 +326,10 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
         </div>
       </div>
 
-      {/* 2. SCROLLABLE CARDS AREA */}
-      <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 space-y-6">
+      {/* 2. MAIN LAYOUT: Left Column Scrolls ONLY, Right Picture Panel is FIXED (Like Schedule View) */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-5 items-start overflow-hidden">
+        {/* LEFT COLUMN: Scrollable Medication Stock & Low Stock Alerts */}
+        <div className="md:col-span-7 xl:col-span-7 2xl:col-span-8 h-full overflow-y-auto custom-scrollbar pr-1.5 space-y-5">
         {/* Main Stock Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
           {filteredMeds.length === 0 ? (
@@ -501,48 +503,102 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
             </div>
           </div>
         )}
+        </div>
+
+        {/* RIGHT COLUMN: FIXED PICTURE & INVENTORY GUIDELINES (Responsive Desktop Panel) */}
+        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col space-y-4 shrink-0 h-full overflow-y-auto custom-scrollbar pr-0.5">
+          {/* Card 1: Medical Stock Visual & Quote Card (Fixed) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm flex flex-col items-center text-center shrink-0">
+            <div className="w-full h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 2xl:h-80 rounded-2xl overflow-hidden relative mb-3 sm:mb-4 shadow-sm">
+              <img
+                src="/assets/medication_stock_art.jpg"
+                alt="Prescription stock and pharmacy supplies"
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent flex items-end p-3.5 sm:p-4">
+                <span className="text-white text-[11px] font-semibold drop-shadow-md">
+                  Prescription Stock & Inventory
+                </span>
+              </div>
+            </div>
+
+            <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
+              Stock Well, Never Miss a Dose ♡
+            </h3>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-1 leading-relaxed">
+              Keep prescriptions organized and monitor your refill thresholds before supply runs out.
+            </p>
+          </div>
+
+          {/* Card 2: Inventory Safety & Organization Guidelines (Fixed) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm space-y-2.5 shrink-0">
+            <div className="flex items-center gap-2 pb-2 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+              <div className="w-6 h-6 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <h4 className="text-xs font-bold text-[#1E2837] dark:text-white">
+                Inventory Guidelines
+              </h4>
+            </div>
+            <ul className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] space-y-2 list-disc list-inside leading-relaxed">
+              <li>Store medications in a cool, dry place away from direct heat.</li>
+              <li>Always check expiration dates before restocking inventory.</li>
+              <li>Keep original packaging or clear labels for dosage safety.</li>
+              <li>Refill your prescription when supply reaches 25% or less.</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       {/* REGISTER NEW DRUG MODAL (matching reference image) */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-[560px] my-auto bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl p-6 sm:p-7 shadow-2xl animate-fadeIn space-y-5">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1e2d3d]">
-              <div className="flex items-center gap-3">
-                {imageData ? (
-                  <div
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-2xl overflow-hidden border border-purple-500/40 shrink-0 flex items-center justify-center cursor-pointer relative group"
-                    title="Change medicine photo"
-                  >
-                    <img src={imageData} alt="Medicine preview" className="w-full h-full object-cover rounded-2xl" style={{ width: '40px', height: '40px' }} />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
-                      <Camera className="w-3.5 h-3.5 text-white" />
+          <div className="w-full max-w-[560px] my-auto bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl overflow-hidden shadow-2xl animate-fadeIn flex flex-col max-h-[92vh]">
+            {/* Modal Picture Banner Header with Medication Artwork */}
+            <div className="w-full h-36 sm:h-44 relative shrink-0 overflow-hidden">
+              <img
+                src="/assets/medication_stock_art.jpg"
+                alt="Medication registration"
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10 flex items-end justify-between p-4 sm:p-5">
+                <div className="flex items-center gap-3">
+                  {imageData ? (
+                    <div
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl overflow-hidden border-2 border-white/80 shadow-md shrink-0 flex items-center justify-center cursor-pointer relative group bg-white/20 backdrop-blur-xs"
+                      title="Change medicine photo"
+                    >
+                      <img src={imageData} alt="Medicine preview" className="w-full h-full object-cover rounded-2xl" style={{ width: '44px', height: '44px' }} />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
+                        <Camera className="w-3.5 h-3.5 text-white" />
+                      </div>
                     </div>
+                  ) : (
+                    <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl bg-white/20 backdrop-blur-md border border-white/40 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <Pill className="w-6 h-6 -rotate-45" />
+                    </div>
+                  )}
+                  <div>
+                    <span className="px-2 py-0.5 rounded-md bg-[#2E7D7E] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs">
+                      Prescription Stock
+                    </span>
+                    <h3 className="text-base sm:text-lg font-bold text-white leading-tight drop-shadow-sm mt-0.5">
+                      Register New Drug
+                    </h3>
                   </div>
-                ) : (
-                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-                    <Pill className="w-5 h-5 -rotate-45" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="text-base font-bold text-[#1E2837] dark:text-white leading-tight">
-                    Register New Drug
-                  </h3>
-                  <p className="text-xs text-[#8B9DA8] dark:text-[#859ba8] mt-0.5">
-                    Add new medicine to stock inventory.
-                  </p>
                 </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowAddModal(false)}
-                className="p-1 rounded-lg text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white hover:bg-[#F3F6F9] dark:hover:bg-[#1a2838] transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
+
+            <div className="p-6 sm:p-7 space-y-5 overflow-y-auto custom-scrollbar">
 
             {formMsg.text && (
               <div
@@ -769,6 +825,7 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
                 </button>
               </div>
             </form>
+            </div>
           </div>
         </div>
       )}
