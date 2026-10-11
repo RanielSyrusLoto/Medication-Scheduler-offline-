@@ -1,7 +1,7 @@
 {
-  "version": "1.1.4",
+  "version": "1.1.5",
   "release_date": "2026-10-11",
-  "release_notes": "Version 1.1.4: Added aesthetic medical photography side panel to Medications View (matching Schedule layout), and added photo banner header to the Register New Drug form.",
+  "release_notes": "Version 1.1.5: Synchronized layout between My Medications and Schedule, featuring responsive desktop photography panel and matching side-by-side Register New Drug form.",
   "download_url": "https://raw.githubusercontent.com/vargas2006/Medication-Scheduler-offline-/main/SmartMedicationScheduler.zip",
   "mandatory": false
 }
