@@ -698,58 +698,39 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
           </div>
         </div>
 
-        {/* RIGHT COLUMN: FIXED PICTURE & SYSTEM GUIDELINES (Responsive Desktop Panel, Non-Scrollable) */}
-        <div className="lg:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
-          {/* Card 1: Healthcare Artwork & Quote (Non-Scrollable, Auto-Fit) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center flex-1 min-h-0 justify-between overflow-hidden shrink-0">
-            <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative shadow-sm max-h-[190px] sm:max-h-[220px] 2xl:max-h-[260px] mb-2">
-              <img
-                src="/assets/side_card_art.jpg"
-                alt="Healthcare botanical artwork"
-                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex items-end p-3">
-                <span className="text-white text-[11px] font-semibold drop-shadow-md">
-                  System Care & Routine
-                </span>
-              </div>
-            </div>
-
-            <div className="shrink-0 space-y-0.5">
-              <p className="text-xs font-bold text-[#2E7D7E] dark:text-[#2dd4bf] font-serif italic">
-                Your health, our priority ♡
-              </p>
-              <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8]">
-                Smart Medication Scheduler v{appVersion}
-              </p>
+        {/* RIGHT COLUMN: FIXED PICTURE PANEL (Responsive Desktop Panel, Non-Scrollable, Full-Height Fit) */}
+        <div className="lg:col-span-4 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col items-center justify-between text-center shrink-0 h-full">
+          {/* Large Image - Fills all available vertical space ("sakto") */}
+          <div className="w-full flex-1 min-h-[340px] sm:min-h-[380px] lg:min-h-[420px] rounded-2xl overflow-hidden relative shadow-sm mb-3.5">
+            <img
+              src="/assets/side_card_art.jpg"
+              alt="Healthcare botanical artwork"
+              className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/15 to-transparent flex items-end p-4">
+              <span className="text-white text-xs font-semibold drop-shadow-md">
+                Prescription Care & Routine
+              </span>
             </div>
           </div>
 
-          {/* Card 2: System & Notification Guidelines (Non-Scrollable Guidelines) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2 shrink-0">
-            <div className="flex items-center gap-2 pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
-              <div className="w-6 h-6 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center">
-                <ShieldCheck className="w-3.5 h-3.5" />
-              </div>
-              <h4 className="text-xs font-bold text-[#1E2837] dark:text-white">
-                Settings Guidelines
-              </h4>
+          {/* Footer Info & Badges */}
+          <div className="shrink-0 space-y-1.5 w-full pt-1">
+            <p className="text-sm font-semibold text-[#2E7D7E] dark:text-[#2dd4bf] font-serif italic">
+              Your health, our priority ♡
+            </p>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8]">
+              Smart Medication Scheduler v{appVersion}
+            </p>
+            <div className="pt-1 flex items-center justify-center gap-2 text-[10px] text-[#64748B] dark:text-[#859ba8]">
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] font-medium border border-teal-200 dark:border-teal-500/20">
+                <ShieldCheck className="w-3 h-3" />
+                <span>On-Time Reminders</span>
+              </span>
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 font-medium border border-sky-200 dark:border-sky-500/20">
+                <span>Auto Sync</span>
+              </span>
             </div>
-
-            <ul className="text-[11px] text-[#64748B] dark:text-[#859ba8] space-y-1.5 leading-relaxed">
-              <li className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
-                <span>Keep desktop notifications turned on for popup alerts.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
-                <span>Verify Gmail to receive online email reminders on mobile.</span>
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
-                <span>Check for updates regularly to obtain security and feature patches.</span>
-              </li>
-            </ul>
           </div>
         </div>
       </div>
