@@ -550,70 +550,64 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
         </div>
       </div>
 
-      {/* REGISTER NEW DRUG MODAL (matching reference image) */}
+      {/* REGISTER NEW DRUG MODAL (matching schedule form layout: 7 cols form, 5 cols artwork on the right) */}
       {showAddModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-[560px] my-auto bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl overflow-hidden shadow-2xl animate-fadeIn flex flex-col max-h-[92vh]">
-            {/* Modal Picture Banner Header with Medication Artwork */}
-            <div className="w-full h-36 sm:h-44 relative shrink-0 overflow-hidden">
-              <img
-                src="/assets/medication_stock_art.jpg"
-                alt="Medication registration"
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10 flex items-end justify-between p-4 sm:p-5">
-                <div className="flex items-center gap-3">
-                  {imageData ? (
-                    <div
-                      onClick={() => fileInputRef.current?.click()}
-                      className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl overflow-hidden border-2 border-white/80 shadow-md shrink-0 flex items-center justify-center cursor-pointer relative group bg-white/20 backdrop-blur-xs"
-                      title="Change medicine photo"
-                    >
-                      <img src={imageData} alt="Medicine preview" className="w-full h-full object-cover rounded-2xl" style={{ width: '44px', height: '44px' }} />
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
-                        <Camera className="w-3.5 h-3.5 text-white" />
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-[780px] lg:max-w-[880px] xl:max-w-[960px] my-auto max-h-[92vh] bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12 animate-fadeIn">
+            {/* Form Side (7 cols) */}
+            <form onSubmit={handleAddMedication} className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
+              <div>
+                {/* Modal Header */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1e2d3d] mb-4">
+                  <div className="flex items-center gap-3">
+                    {imageData ? (
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-2xl overflow-hidden border border-purple-500/40 shrink-0 flex items-center justify-center cursor-pointer relative group"
+                        title="Change medicine photo"
+                      >
+                        <img src={imageData} alt="Medicine preview" className="w-full h-full object-cover rounded-2xl" style={{ width: '40px', height: '40px' }} />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
+                          <Camera className="w-3.5 h-3.5 text-white" />
+                        </div>
                       </div>
+                    ) : (
+                      <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                        <Pill className="w-5 h-5 -rotate-45" />
+                      </div>
+                    )}
+                    <div>
+                      <h3 className="text-base font-bold text-[#1E2837] dark:text-white leading-tight">
+                        Register New Drug
+                      </h3>
+                      <p className="text-xs text-[#8B9DA8] dark:text-[#859ba8] mt-0.5">
+                        Add new medicine to stock inventory.
+                      </p>
                     </div>
-                  ) : (
-                    <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl bg-white/20 backdrop-blur-md border border-white/40 text-white flex items-center justify-center shrink-0 shadow-md">
-                      <Pill className="w-6 h-6 -rotate-45" />
-                    </div>
-                  )}
-                  <div>
-                    <span className="px-2 py-0.5 rounded-md bg-[#2E7D7E] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs">
-                      Prescription Stock
-                    </span>
-                    <h3 className="text-base sm:text-lg font-bold text-white leading-tight drop-shadow-sm mt-0.5">
-                      Register New Drug
-                    </h3>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddModal(false)}
+                    className="p-1 rounded-lg text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white hover:bg-[#F3F6F9] dark:hover:bg-[#1a2838] transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="p-1.5 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
 
-            <div className="p-6 sm:p-7 space-y-5 overflow-y-auto custom-scrollbar">
+                {formMsg.text && (
+                  <div
+                    className={`p-3 rounded-xl mb-3 text-xs flex items-center gap-2 ${
+                      formMsg.isError
+                        ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20'
+                        : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+                    }`}
+                  >
+                    {formMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
+                    <span>{formMsg.text}</span>
+                  </div>
+                )}
 
-            {formMsg.text && (
-              <div
-                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
-                  formMsg.isError
-                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20'
-                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
-                }`}
-              >
-                {formMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
-                <span>{formMsg.text}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleAddMedication} className="space-y-4">
+                <div className="space-y-4">
               {/* Field 1: Medicine Name */}
               <div>
                 <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
@@ -806,6 +800,8 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
                   </button>
                 )}
               </div>
+              </div>
+              </div>
 
               {/* Action Buttons (matching screenshot) */}
               <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E3E8EE] dark:border-[#1e2d3d]">
@@ -825,6 +821,19 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
                 </button>
               </div>
             </form>
+
+            {/* Artwork Side (5 cols) - Exact same image position as schedule form modal! */}
+            <div className="hidden md:block md:col-span-5 relative min-h-[380px] lg:min-h-[460px] bg-gradient-to-br from-[#E2F0EF] to-[#D5EAE9] dark:from-[#112733] dark:to-[#0a1822] overflow-hidden">
+              <img
+                src="/assets/medication_stock_art.jpg"
+                alt="Medication pharmacy stock"
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+              />
+              <div className="absolute top-6 right-6 max-w-[170px] text-right">
+                <p className="text-xs font-medium text-[#2E7D7E] dark:text-[#2dd4bf] italic font-serif leading-snug">
+                  Stock Well, Never Miss a Dose ♡
+                </p>
+              </div>
             </div>
           </div>
         </div>
