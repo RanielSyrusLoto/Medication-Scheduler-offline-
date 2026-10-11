@@ -229,32 +229,8 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
           </div>
         </div>
 
-        {/* Right Column: Stay on Track (Much Bigger Picture!) & Quick Actions (Responsive Desktop Layout) */}
+        {/* Right Column: Quick Actions & Stay on Track (Responsive Desktop Layout) */}
         <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-4 shrink-0 h-full overflow-y-auto custom-scrollbar pr-0.5">
-          {/* Card: Stay on Track! With DYNAMIC RESPONSIVE BIG PICTURE */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm relative overflow-hidden flex flex-col items-center text-center flex-1 min-h-[340px] lg:min-h-[400px] xl:min-h-[460px] justify-between">
-            {/* BIGGER PICTURE DISPLAY */}
-            <div className="w-full flex-1 flex items-center justify-center p-3 mb-3 bg-gradient-to-b from-[#2E7D7E]/5 via-[#2E7D7E]/2 to-transparent dark:from-[#2dd4bf]/10 dark:via-[#2dd4bf]/5 dark:to-transparent rounded-2xl border border-[#2E7D7E]/10 dark:border-[#2dd4bf]/10 overflow-hidden">
-              <img
-                src="/assets/stay_on_track_art.jpg"
-                alt="Health reminder illustration"
-                className="w-full h-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] lg:max-w-[440px] xl:max-w-[520px] 2xl:max-w-[600px] max-h-[300px] sm:max-h-[360px] lg:max-h-[420px] xl:max-h-[480px] 2xl:max-h-[560px] aspect-square object-contain rounded-2xl drop-shadow-xl hover:scale-105 transition-transform duration-300"
-              />
-            </div>
-            <div className="shrink-0 space-y-1">
-              <h3 className="text-base sm:text-lg lg:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight">
-                Stay on track!
-              </h3>
-              <p className="text-xs sm:text-[13px] text-[#8B9DA8] dark:text-[#859ba8] leading-relaxed max-w-[280px] mx-auto">
-                Your health matters. Keep taking your medications on time.
-              </p>
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] text-[11px] font-semibold mt-1 shadow-xs">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>Consistent Routine</span>
-              </div>
-            </div>
-          </div>
-
           {/* Card: Quick Actions */}
           <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm space-y-2.5 shrink-0">
             <h3 className="text-xs font-bold text-[#1E2837] dark:text-white tracking-tight pb-2 border-b border-[#E3E8EE] dark:border-[#1c3345]">
@@ -288,6 +264,30 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
                 <FileText className="w-4 h-4 text-[#2E7D7E] dark:text-[#2dd4bf]" />
                 <span>View Reports</span>
               </button>
+            </div>
+          </div>
+
+          {/* Card: Stay on Track! With DYNAMIC RESPONSIVE BIG PICTURE */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm relative overflow-hidden flex flex-col items-center text-center flex-1 min-h-[340px] lg:min-h-[400px] xl:min-h-[460px] justify-between">
+            {/* BIGGER PICTURE DISPLAY */}
+            <div className="w-full flex-1 flex items-center justify-center p-3 mb-3 bg-gradient-to-b from-[#2E7D7E]/5 via-[#2E7D7E]/2 to-transparent dark:from-[#2dd4bf]/10 dark:via-[#2dd4bf]/5 dark:to-transparent rounded-2xl border border-[#2E7D7E]/10 dark:border-[#2dd4bf]/10 overflow-hidden">
+              <img
+                src="/assets/stay_on_track_art.jpg"
+                alt="Health reminder illustration"
+                className="w-full h-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] lg:max-w-[440px] xl:max-w-[520px] 2xl:max-w-[600px] max-h-[300px] sm:max-h-[360px] lg:max-h-[420px] xl:max-h-[480px] 2xl:max-h-[560px] aspect-square object-contain rounded-2xl drop-shadow-xl hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="shrink-0 space-y-1">
+              <h3 className="text-base sm:text-lg lg:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight">
+                Stay on track!
+              </h3>
+              <p className="text-xs sm:text-[13px] text-[#8B9DA8] dark:text-[#859ba8] leading-relaxed max-w-[280px] mx-auto">
+                Your health matters. Keep taking your medications on time.
+              </p>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] text-[11px] font-semibold mt-1 shadow-xs">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Consistent Routine</span>
+              </div>
             </div>
           </div>
         </div>
