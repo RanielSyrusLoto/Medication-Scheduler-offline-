@@ -1,31 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, AlertCircle, AlertTriangle, Check, CheckCircle2, Search, ArrowUpDown, Boxes, X, LayoutList, LayoutGrid, Pill } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, AlertCircle, AlertTriangle, Check, Search, X, Pill, PackagePlus, Sparkles, Filter, Calendar, Camera, Upload, Image as ImageIcon } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, Medication } from '../types';
-
-interface MedImageProps {
-  src?: string | null;
-  alt?: string;
-}
-
-function MedImage({ src, alt }: MedImageProps): React.JSX.Element {
-  const [hasError, setHasError] = useState<boolean>(false);
-
-  if (!src || hasError) {
-    return <Pill className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
-  }
-
-  const imageSrc = src.startsWith('http') ? src : `file:///${src.replace(/\\/g, '/')}`;
-
-  return (
-    <img
-      src={imageSrc}
-      alt={alt}
-      className="w-full h-full object-cover"
-      onError={() => setHasError(true)}
-    />
-  );
-}
 
 interface MedicationsViewProps {
   user: User | null;
@@ -37,19 +13,16 @@ interface StatusMsg {
   isError: boolean;
 }
 
-type StockFilterType = 'ALL' | 'LOW_STOCK' | 'OUT_OF_STOCK' | 'IN_STOCK';
-type SortByType = 'DEFAULT' | 'STOCK_ASC' | 'STOCK_DESC' | 'NAME_AZ';
+type StockFilterType = 'ALL' | 'LOW_STOCK' | 'IN_STOCK';
 
 export default function MedicationsView({ user, onDataChange }: MedicationsViewProps): React.JSX.Element {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
-
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [stockFilter, setStockFilter] = useState<StockFilterType>('ALL');
-  const [sortBy, setSortBy] = useState<SortByType>('DEFAULT');
 
-  const [showModal, setShowModal] = useState<boolean>(false);
+  // Modal State for Register New Drug (matching user screenshot)
+  const [showAddModal, setShowAddModal] = useState<boolean>(false);
   const [name, setName] = useState<string>('');
   const [strengthVal, setStrengthVal] = useState<string>('500');
   const [strengthUnit, setStrengthUnit] = useState<string>('mg');
@@ -58,17 +31,36 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
   const [stockUnit, setStockUnit] = useState<string>('capsules');
   const [threshold, setThreshold] = useState<string>('10');
   const [expirationDate, setExpirationDate] = useState<string>('');
-  const [imagePath, setImagePath] = useState<string>('');
+  const [imageData, setImageData] = useState<string>('');
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [formMsg, setFormMsg] = useState<StatusMsg>({ text: '', isError: false });
   const [submitting, setSubmitting] = useState<boolean>(false);
 
+  // Modal State for Restock
   const [showRestockModal, setShowRestockModal] = useState<boolean>(false);
   const [restockMedObj, setRestockMedObj] = useState<Medication | null>(null);
   const [addStockAmount, setAddStockAmount] = useState<string>('30');
   const [restockMsg, setRestockMsg] = useState<StatusMsg>({ text: '', isError: false });
   const [restocking, setRestocking] = useState<boolean>(false);
 
-  const handleOpenRestockModal = (med: Medication) => {
+  // Modal State for Delete Confirmation
+  const [pendingDeleteMed, setPendingDeleteMed] = useState<Medication | null>(null);
+
+  const fetchMeds = async () => {
+    if (!user?.user_id) return;
+    setLoading(true);
+    const res = await callApi('get_medications', user.user_id);
+    if (res.success) {
+      setMedications(res.medications || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchMeds();
+  }, [user]);
+
+  const handleOpenRestock = (med: Medication) => {
     setRestockMedObj(med);
     setAddStockAmount('30');
     setRestockMsg({ text: '', isError: false });
@@ -89,14 +81,14 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
     try {
       const res = await callApi('restock_medication', restockMedObj.med_id, amt);
       if (res.success) {
-        setRestockMsg({ text: `Successfully added ${amt} ${restockMedObj.stock_unit || 'capsules'} to stock!`, isError: false });
+        setRestockMsg({ text: `Added ${amt} ${restockMedObj.stock_unit || 'tablets'} to stock!`, isError: false });
         fetchMeds();
         if (onDataChange) onDataChange();
         setTimeout(() => {
           setShowRestockModal(false);
           setRestockMedObj(null);
           setRestockMsg({ text: '', isError: false });
-        }, 1000);
+        }, 800);
       } else {
         setRestockMsg({ text: res.message || 'Failed to add stock.', isError: true });
       }
@@ -107,620 +99,673 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
     }
   };
 
-  const fetchMeds = async () => {
-    if (!user?.user_id) return;
-    setLoading(true);
-    const res = await callApi('get_medications', user.user_id);
-    if (res.success) {
-      setMedications(res.medications || []);
-    }
-    setLoading(false);
-  };
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  useEffect(() => {
-    fetchMeds();
-  }, [user]);
+    if (!file.type.startsWith('image/')) {
+      setFormMsg({ text: 'Please select a valid image file (PNG/JPG/WEBP).', isError: true });
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const maxDim = 400;
+        let width = img.width;
+        let height = img.height;
+        if (width > height) {
+          if (width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          }
+        } else {
+          if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          setImageData(dataUrl);
+        }
+      };
+      img.src = event.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleAddMedication = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.user_id) return;
     setFormMsg({ text: '', isError: false });
 
-    if (!name.trim() || !strengthVal.trim()) {
-      setFormMsg({ text: 'Please fill in Medicine Name and Medicine Strength.', isError: true });
+    if (!name.trim()) {
+      setFormMsg({ text: 'Please enter Medicine Name.', isError: true });
       return;
     }
 
     setSubmitting(true);
     try {
-      const computedStrength = `${strengthVal.trim()} ${strengthUnit.trim()}`.trim();
-      const fullDosageStr = `${computedStrength} ${dosageForm.trim()}`.trim();
+      const cleanStrengthVal = strengthVal.trim() || '500';
+      const cleanStrengthUnit = strengthUnit.trim() || 'mg';
+      const computedStrength = `${cleanStrengthVal} ${cleanStrengthUnit}`;
+      const computedDosage = computedStrength;
+      const computedForm = dosageForm || 'Capsule';
+      const computedUnit = stockUnit || 'capsules';
+      const computedStock = parseInt(stock, 10) || 30;
+      const computedThreshold = parseInt(threshold, 10) || 10;
+      const cleanExpiration = expirationDate.trim() || null;
 
       const res = await callApi(
         'add_medication',
         user.user_id,
         name.trim(),
-        fullDosageStr,
-        parseInt(stock, 10) || 0,
-        parseInt(threshold, 10) || 0,
-        imagePath || null,
+        computedDosage,
+        computedStock,
+        computedThreshold,
+        imageData || null, // Saves user photo or null (keeps default image)
         computedStrength,
-        dosageForm.trim(),
-        stockUnit.trim() || 'capsules',
+        computedForm,
+        computedUnit,
         null,
         null,
-        expirationDate || null
+        cleanExpiration
       );
 
-      if (res.success) {
-        setFormMsg({ text: 'Medication registered in stock successfully!', isError: false });
-        setName('');
-        setStrengthVal('500');
-        setStrengthUnit('mg');
-        setDosageForm('Capsule');
-        setStock('30');
-        setStockUnit('capsules');
-        setThreshold('10');
-        setExpirationDate('');
-        setImagePath('');
+      if (res && res.success) {
+        setFormMsg({ text: 'Medicine registered to inventory successfully!', isError: false });
         fetchMeds();
         if (onDataChange) onDataChange();
         setTimeout(() => {
-          setShowModal(false);
+          setShowAddModal(false);
+          setName('');
+          setStrengthVal('500');
+          setStrengthUnit('mg');
+          setDosageForm('Capsule');
+          setStock('30');
+          setStockUnit('capsules');
+          setThreshold('10');
+          setExpirationDate('');
+          setImageData('');
           setFormMsg({ text: '', isError: false });
-        }, 1200);
+        }, 800);
       } else {
-        setFormMsg({ text: res.message || 'Failed to register medication.', isError: true });
+        setFormMsg({ text: res?.message || 'Failed to add medication.', isError: true });
       }
     } catch (err) {
-      setFormMsg({ text: 'Error adding medication to stock.', isError: true });
+      setFormMsg({ text: 'Error saving medication.', isError: true });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const [pendingDeleteMed, setPendingDeleteMed] = useState<Medication | null>(null);
-
-  const confirmDeleteMedication = async () => {
+  const confirmDeleteMed = async () => {
     if (!pendingDeleteMed) return;
     const target = pendingDeleteMed;
     setPendingDeleteMed(null);
-    const res = await callApi('delete_medication', target.med_id);
-    if (res.success) {
-      fetchMeds();
-      if (onDataChange) onDataChange();
+    try {
+      const res = await callApi('delete_medication', target.med_id);
+      if (res.success) {
+        fetchMeds();
+        if (onDataChange) onDataChange();
+      }
+    } catch (err) {
+      console.error('Delete error', err);
     }
   };
 
-  const totalCount = medications.length;
-  const lowStockCount = medications.filter((m) => m.stock > 0 && (m.is_low_stock || m.stock <= (m.refill_threshold || 10))).length;
-  const outOfStockCount = medications.filter((m) => m.stock <= 0).length;
-  const inStockCount = medications.filter((m) => m.stock > (m.refill_threshold || 10)).length;
+  // Filtered meds
+  const filteredMeds = medications.filter((m) => {
+    const matchesSearch =
+      m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (m.dosage || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-  const filteredMeds = medications
-    .filter((m) => {
-      const matchesSearch =
-        m.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (m.strength || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (m.dosage || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const isLow = m.is_low_stock || (m.stock <= (m.refill_threshold || 10));
 
-      if (!matchesSearch) return false;
+    if (stockFilter === 'LOW_STOCK') return matchesSearch && isLow;
+    if (stockFilter === 'IN_STOCK') return matchesSearch && !isLow && m.stock > 0;
+    return matchesSearch;
+  });
 
-      const thresh = m.refill_threshold || 10;
-      const isOut = m.stock <= 0;
-      const isLow = m.stock > 0 && (m.is_low_stock || m.stock <= thresh);
-      const isSufficient = m.stock > thresh;
+  const lowStockMeds = medications.filter(
+    (m) => m.is_low_stock || m.stock <= (m.refill_threshold || 10)
+  );
 
-      if (stockFilter === 'LOW_STOCK') return isLow;
-      if (stockFilter === 'OUT_OF_STOCK') return isOut;
-      if (stockFilter === 'IN_STOCK') return isSufficient;
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'STOCK_ASC') return a.stock - b.stock;
-      if (sortBy === 'STOCK_DESC') return b.stock - a.stock;
-      if (sortBy === 'NAME_AZ') return a.name.localeCompare(b.name);
-      return 0;
-    });
+  const cardColors = [
+    { circle: 'bg-teal-100 dark:bg-teal-500/20 text-[#2E7D7E] dark:text-[#2dd4bf]', bar: 'bg-[#2E7D7E] dark:bg-[#2dd4bf]' },
+    { circle: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400', bar: 'bg-amber-500' },
+    { circle: 'bg-rose-100 dark:bg-rose-500/20 text-rose-600 dark:text-rose-400', bar: 'bg-rose-500' },
+    { circle: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', bar: 'bg-emerald-500' },
+  ];
 
   return (
-    <div className="p-5 flex flex-col h-full overflow-hidden space-y-4 relative transition-colors duration-150">
-
-      {/* Desktop Toolbar Container */}
-      <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4 flex flex-col gap-3 shrink-0 shadow-sm">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-
-          {/* Search Input */}
+    <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
+      {/* 1. STICKY TOP BAR: Search + Filter Chips + Add Medication (Fixed at Top) */}
+      <div className="shrink-0 pb-4 mb-4 border-b border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9] dark:bg-[#0c1722] z-10">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
+          {/* Search Input Box */}
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B9DA8]" />
             <input
               type="text"
-              placeholder="Search medication stock by name or strength..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+              placeholder="Search medication stock by name, strength, dosage..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B9DA8] hover:text-[#1E2837]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-
-            {/* View Mode Switcher */}
-            <div className="flex items-center bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-1 rounded-xl">
+          {/* Filter Pills & Add Medication Button */}
+          <div className="flex items-center gap-3 self-end sm:self-auto">
+            {/* Quick Filter Segment */}
+            <div className="inline-flex p-1 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl gap-1 text-xs font-semibold">
               <button
                 type="button"
-                onClick={() => setViewMode('list')}
-                title="List View"
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold ${
-                  viewMode === 'list'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                onClick={() => setStockFilter('ALL')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  stockFilter === 'ALL'
+                    ? 'bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf]'
+                    : 'text-[#8B9DA8] hover:text-[#1E2837]'
                 }`}
               >
-                <LayoutList className="w-4 h-4" />
-                <span>List View</span>
+                All ({medications.length})
               </button>
-
-              <div className="w-[1px] h-4 bg-slate-300 dark:bg-[#262f46] mx-1" />
-
               <button
                 type="button"
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold ${
-                  viewMode === 'grid'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                onClick={() => setStockFilter('IN_STOCK')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  stockFilter === 'IN_STOCK'
+                    ? 'bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf]'
+                    : 'text-[#8B9DA8] hover:text-[#1E2837]'
                 }`}
               >
-                <LayoutGrid className="w-4 h-4" />
-                <span>Grid View</span>
+                In Stock
+              </button>
+              <button
+                type="button"
+                onClick={() => setStockFilter('LOW_STOCK')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${
+                  stockFilter === 'LOW_STOCK'
+                    ? 'bg-rose-50 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400'
+                    : 'text-[#8B9DA8] hover:text-[#1E2837]'
+                }`}
+              >
+                Low Stock ({lowStockMeds.length})
               </button>
             </div>
 
-            {/* Primary Action Button */}
+            {/* Add Medication Button */}
             <button
-              onClick={() => setShowModal(true)}
-              className="bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm shrink-0"
+              type="button"
+              onClick={() => {
+                setFormMsg({ text: '', isError: false });
+                setShowAddModal(true);
+              }}
+              className="py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Drug</span>
+              <span>Add Medication</span>
             </button>
-          </div>
-        </div>
-
-        {/* Filter and Sort Sub-Bar */}
-        <div className="flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-slate-200 dark:border-[#1e2436]">
-
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setStockFilter('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                stockFilter === 'ALL'
-                  ? 'bg-slate-200 text-slate-900 dark:bg-[#222838] dark:text-white border border-slate-300 dark:border-[#2b334a]'
-                  : 'bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-              }`}
-            >
-              <Boxes className="w-3.5 h-3.5" />
-              <span>All Stock</span>
-              <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300 font-bold">
-                {totalCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setStockFilter('LOW_STOCK')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                stockFilter === 'LOW_STOCK'
-                  ? 'bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30'
-                  : 'bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-amber-600 dark:hover:text-amber-400'
-              }`}
-            >
-              <AlertTriangle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-              <span>Low Stock (Need Refill)</span>
-              <span className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                lowStockCount > 0 ? 'bg-amber-200 text-amber-900 dark:bg-amber-500/20 dark:text-amber-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-              }`}>
-                {lowStockCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setStockFilter('OUT_OF_STOCK')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                stockFilter === 'OUT_OF_STOCK'
-                  ? 'bg-rose-100 text-rose-900 border border-rose-300 dark:bg-rose-500/15 dark:text-rose-300 dark:border-rose-500/30'
-                  : 'bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400'
-              }`}
-            >
-              <AlertCircle className="w-3.5 h-3.5 text-rose-500 dark:text-rose-400" />
-              <span>Out of Stock</span>
-              <span className={`ml-1 text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
-                outOfStockCount > 0 ? 'bg-rose-200 text-rose-900 dark:bg-rose-500/20 dark:text-rose-400' : 'bg-slate-200 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-              }`}>
-                {outOfStockCount}
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setStockFilter('IN_STOCK')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                stockFilter === 'IN_STOCK'
-                  ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30'
-                  : 'bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400'
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
-              <span>In Stock</span>
-              <span className="ml-1 text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-200 text-emerald-900 dark:bg-emerald-500/20 dark:text-emerald-400 font-bold">
-                {inStockCount}
-              </span>
-            </button>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] px-3 py-1.5 rounded-xl text-xs">
-              <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Sort By:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortByType)}
-                className="bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none cursor-pointer"
-              >
-                <option value="DEFAULT" className="bg-white dark:bg-[#151926]">Default</option>
-                <option value="STOCK_ASC" className="bg-white dark:bg-[#151926]">Stock (Low to High)</option>
-                <option value="STOCK_DESC" className="bg-white dark:bg-[#151926]">Stock (High to Low)</option>
-                <option value="NAME_AZ" className="bg-white dark:bg-[#151926]">Medication Name (A - Z)</option>
-              </select>
-            </div>
-
-            <div className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 font-medium">
-              <span>Showing:</span>
-              <span className="bg-slate-100 text-purple-700 dark:bg-[#1c2234] dark:text-purple-400 border border-slate-200 dark:border-[#262f46] font-bold px-2 py-0.5 rounded-md">
-                {filteredMeds.length}
-              </span>
-            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pr-1">
-        {loading ? (
-          <div className="text-center text-slate-500 dark:text-slate-400 py-20 text-xs">Loading medication inventory...</div>
-        ) : filteredMeds.length === 0 ? (
-          <div className="text-center text-slate-500 dark:text-slate-400 py-24 text-xs">No medications found in stock inventory.</div>
-        ) : viewMode === 'grid' ? (
-
-          /* Grid View Layout - Form Stock Refill at Expires Status */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredMeds.map((med) => {
-              const thresh = med.refill_threshold || 10;
-              const isOut = med.stock <= 0;
-              const isLow = !isOut && (med.is_low_stock || med.stock <= thresh);
-              const unitStr = med.stock_unit || 'capsules';
-              const expiresStr = med.expiration_date ? med.expiration_date : 'Unknown';
+      {/* 2. SCROLLABLE CARDS AREA */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 space-y-6">
+        {/* Main Stock Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-5">
+          {filteredMeds.length === 0 ? (
+            <div className="col-span-1 md:col-span-2 2xl:col-span-3 py-12 text-center text-[#8B9DA8] dark:text-[#859ba8] bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-8">
+              <Pill className="w-8 h-8 mx-auto text-[#2E7D7E]/50 mb-2" />
+              <p className="text-xs font-semibold text-[#1E2837] dark:text-white">
+                {searchTerm ? 'No matching medications found' : 'No medications registered yet'}
+              </p>
+              <p className="text-xs text-[#8B9DA8] mt-1">
+                {searchTerm ? 'Try a different search term or clear the filter.' : 'Add your prescriptions to start tracking stock and schedules.'}
+              </p>
+            </div>
+          ) : (
+            filteredMeds.map((med, idx) => {
+              const colors = cardColors[idx % cardColors.length];
+              const maxExpected = Math.max(med.stock, 30);
+              const percentage = Math.min(100, Math.round((med.stock / maxExpected) * 100));
+              const isLow = med.is_low_stock || med.stock <= (med.refill_threshold || 10);
 
               return (
                 <div
                   key={med.med_id}
-                  className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] hover:border-purple-300 dark:hover:border-purple-500/40 rounded-2xl p-4 flex flex-col justify-between space-y-4 transition-all shadow-sm"
+                  className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4 group"
                 >
+                  {/* Top Header Row with Photo or Default Icon */}
                   <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] flex items-center justify-center text-lg shrink-0 overflow-hidden shadow-sm">
-                        <MedImage src={med.image_path} alt={med.name} />
-                      </div>
+                    <div className="flex items-center gap-3.5 min-w-0">
+                      {med.image_path ? (
+                        <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 shadow-xs bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center">
+                          <img
+                            src={med.image_path}
+                            alt={med.name}
+                            className="w-full h-full object-cover rounded-2xl"
+                            style={{ width: '44px', height: '44px' }}
+                          />
+                        </div>
+                      ) : (
+                        <div className={`w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl flex items-center justify-center shrink-0 shadow-xs ${colors.circle}`}>
+                          <Pill className="w-6 h-6 -rotate-45" />
+                        </div>
+                      )}
+
                       <div className="min-w-0">
-                        <h4 className="font-semibold text-slate-900 dark:text-white text-sm truncate">{med.name}</h4>
-                        <p className="text-xs text-purple-600 dark:text-purple-400 font-semibold truncate">
-                          {med.strength || med.dosage}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm font-bold text-[#1E2837] dark:text-white truncate">
+                            {med.name}
+                          </h3>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-800/50">
+                            {med.dosage_form || 'Tablet'}
+                          </span>
+                        </div>
+                        <p className="text-xs font-semibold text-[#2E7D7E] dark:text-[#2dd4bf] mt-0.5">
+                          {med.strength || med.dosage || 'Standard Strength'}
                         </p>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => setPendingDeleteMed(med)}
-                      className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors shrink-0"
-                      title="Delete Medication"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {/* Inner Box Container with requested fields: Form, Stock, Refill at, Expires, Status */}
-                  <div className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl p-3 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Form:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {med.dosage_form || 'Capsule'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Stock:</span>
-                      <span className={`font-bold ${isOut ? 'text-rose-600 dark:text-rose-400' : isLow ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-                        {med.stock} {unitStr}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Refill at:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {thresh} {unitStr}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Expires:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {expiresStr}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-[#222838]">
-                      <span className="text-slate-500 dark:text-slate-400">Status:</span>
-                      <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${
-                        isOut
-                          ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30'
-                          : isLow
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-                      }`}>
-                        {isOut ? 'OUT OF STOCK' : isLow ? 'LOW STOCK' : 'IN STOCK'}
-                      </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleOpenRestock(med)}
+                        className="px-2.5 py-1 text-[11px] font-semibold bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] text-[#2E7D7E] dark:text-[#2dd4bf] hover:bg-[#EBF5F5] dark:hover:bg-[#183641] rounded-lg transition-colors flex items-center gap-1"
+                      >
+                        <PackagePlus className="w-3 h-3" />
+                        <span>Restock</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteMed(med)}
+                        className="p-1 text-[#8B9DA8] hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                        title="Delete Medication"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleOpenRestockModal(med)}
-                    className={`w-full py-2 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm ${
-                      isOut || isLow
-                        ? 'bg-amber-500 hover:bg-amber-400 text-white'
-                        : 'bg-purple-600 hover:bg-purple-500 text-white'
-                    }`}
-                  >
-                    <Boxes className="w-3.5 h-3.5" />
-                    <span>{isOut || isLow ? 'Restock Now' : 'Add Stock'}</span>
-                  </button>
+                  {/* Adjusted Specs Display Grid */}
+                  <div className="grid grid-cols-2 gap-2 py-2 px-3 rounded-xl bg-[#F8FAFC] dark:bg-[#101b26] border border-[#E3E8EE]/60 dark:border-[#1c3345]/60 text-[11px]">
+                    <div>
+                      <span className="text-[#8B9DA8] dark:text-[#859ba8] block text-[10px] font-medium">Quantity in Stock</span>
+                      <strong className="text-[#1E2837] dark:text-white font-semibold">
+                        {med.stock} {med.stock_unit || 'tablets'}
+                      </strong>
+                    </div>
+                    <div>
+                      <span className="text-[#8B9DA8] dark:text-[#859ba8] block text-[10px] font-medium">Low Stock Alert</span>
+                      <strong className="text-[#1E2837] dark:text-white font-semibold">
+                        ≤ {med.refill_threshold || 10} {med.stock_unit || 'tablets'}
+                      </strong>
+                    </div>
+                    {med.expiration_date && (
+                      <div className="col-span-2 pt-1 border-t border-[#E3E8EE]/40 dark:border-[#1c3345]/40 flex items-center gap-1 text-[10px] text-[#8B9DA8]">
+                        <Calendar className="w-3 h-3 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                        <span>Expires: <strong className="text-[#1E2837] dark:text-white">{med.expiration_date}</strong></span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Progress Bar & Percentage */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-medium text-[#8B9DA8] dark:text-[#859ba8]">
+                      <span>Stock Level</span>
+                      <span>{percentage}%</span>
+                    </div>
+                    <div className="w-full bg-[#F3F6F9] dark:bg-[#172838] h-2 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-300 ${
+                          isLow ? 'bg-rose-500' : colors.bar
+                        }`}
+                        style={{ width: `${percentage}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
               );
-            })}
-          </div>
-        ) : (
+            })
+          )}
+        </div>
 
-          /* List View Layout */
-          <div className="space-y-2">
-            {filteredMeds.map((med) => {
-              const thresh = med.refill_threshold || 10;
-              const isOut = med.stock <= 0;
-              const isLow = !isOut && (med.is_low_stock || med.stock <= thresh);
-              const unitStr = med.stock_unit || 'capsules';
-              const expiresStr = med.expiration_date ? med.expiration_date : 'Unknown';
+        {/* Low Stock Section matching reference image */}
+        {lowStockMeds.length > 0 && (
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-pulse" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                Low Stock
+              </h3>
+            </div>
 
-              return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {lowStockMeds.map((med) => (
                 <div
-                  key={med.med_id}
-                  className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] hover:border-purple-300 dark:hover:border-purple-500/40 rounded-xl p-3 flex items-center justify-between transition-all"
+                  key={`low-${med.med_id}`}
+                  className="bg-white dark:bg-[#13222f] border border-rose-200 dark:border-rose-900/50 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-4"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] flex items-center justify-center text-base shrink-0 overflow-hidden shadow-sm">
-                      <MedImage src={med.image_path} alt={med.name} />
-                    </div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {med.image_path ? (
+                      <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl overflow-hidden border border-rose-200 dark:border-rose-900/50 shrink-0 flex items-center justify-center">
+                        <img src={med.image_path} alt={med.name} className="w-full h-full object-cover rounded-xl" style={{ width: '40px', height: '40px' }} />
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl bg-rose-50 dark:bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                        <AlertTriangle className="w-5 h-5" />
+                      </div>
+                    )}
                     <div className="min-w-0">
-                      <h4 className="font-semibold text-slate-900 dark:text-white text-xs truncate">{med.name} &bull; <span className="text-purple-600 dark:text-purple-400 font-bold">{med.strength || med.dosage}</span></h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        Form: {med.dosage_form || 'Capsule'} &bull; Stock: <span className={isOut ? 'text-rose-600 dark:text-rose-400 font-bold' : isLow ? 'text-amber-600 dark:text-amber-400 font-bold' : 'text-slate-700 dark:text-slate-300 font-bold'}>{med.stock} {unitStr}</span> &bull; Refill: {thresh} {unitStr} &bull; Expires: {expiresStr}
+                      <h4 className="text-xs font-bold text-[#1E2837] dark:text-white truncate">
+                        {med.name} {med.strength || med.dosage}
+                      </h4>
+                      <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8]">
+                        {med.stock} {med.stock_unit || 'tablets'} remaining
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-[9px] font-bold px-2.5 py-1 rounded ${
-                      isOut
-                        ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30'
-                        : isLow
-                        ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30'
-                        : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-                    }`}>
-                      {isOut ? 'OUT OF STOCK' : isLow ? 'LOW STOCK' : 'IN STOCK'}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/20">
+                      (25% or less)
                     </span>
-
                     <button
                       type="button"
-                      onClick={() => handleOpenRestockModal(med)}
-                      className={`px-3 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 ${
-                        isOut || isLow
-                          ? 'bg-amber-500 hover:bg-amber-400 text-white'
-                          : 'bg-purple-600 hover:bg-purple-500 text-white'
-                      }`}
+                      onClick={() => handleOpenRestock(med)}
+                      className="px-3 py-1 bg-[#2E7D7E] text-white text-[11px] font-semibold rounded-lg hover:bg-[#26696a] transition-all shadow-xs"
                     >
-                      <Boxes className="w-3.5 h-3.5" />
-                      <span>{isOut || isLow ? 'Restock Now' : 'Add Stock'}</span>
-                    </button>
-
-                    <button
-                      onClick={() => setPendingDeleteMed(med)}
-                      className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                      title="Delete Medication"
-                    >
-                      <Trash2 className="w-4 h-4" />
+                      Restock
                     </button>
                   </div>
                 </div>
-              );
-            })}
+              ))}
+            </div>
           </div>
         )}
       </div>
 
-      {/* Add Drug Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-6 shadow-2xl space-y-5 text-slate-900 dark:text-white">
-
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1e2436] pb-3.5">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <Pill className="w-4 h-4" />
-                </div>
+      {/* REGISTER NEW DRUG MODAL (matching reference image) */}
+      {showAddModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-[560px] my-auto bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl p-6 sm:p-7 shadow-2xl animate-fadeIn space-y-5">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1e2d3d]">
+              <div className="flex items-center gap-3">
+                {imageData ? (
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-2xl overflow-hidden border border-purple-500/40 shrink-0 flex items-center justify-center cursor-pointer relative group"
+                    title="Change medicine photo"
+                  >
+                    <img src={imageData} alt="Medicine preview" className="w-full h-full object-cover rounded-2xl" style={{ width: '40px', height: '40px' }} />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity rounded-2xl">
+                      <Camera className="w-3.5 h-3.5 text-white" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-2xl bg-purple-500/15 border border-purple-500/30 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                    <Pill className="w-5 h-5 -rotate-45" />
+                  </div>
+                )}
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Register New Drug</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Add new medicine to stock inventory.</p>
+                  <h3 className="text-base font-bold text-[#1E2837] dark:text-white leading-tight">
+                    Register New Drug
+                  </h3>
+                  <p className="text-xs text-[#8B9DA8] dark:text-[#859ba8] mt-0.5">
+                    Add new medicine to stock inventory.
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => setShowModal(false)}
-                className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1c2234] text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors"
+                type="button"
+                onClick={() => setShowAddModal(false)}
+                className="p-1 rounded-lg text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white hover:bg-[#F3F6F9] dark:hover:bg-[#1a2838] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {formMsg.text && (
-              <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                formMsg.isError ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'
-              }`}>
+              <div
+                className={`p-3 rounded-xl text-xs flex items-center gap-2 ${
+                  formMsg.isError
+                    ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20'
+                    : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+                }`}
+              >
                 {formMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
                 <span>{formMsg.text}</span>
               </div>
             )}
 
             <form onSubmit={handleAddMedication} className="space-y-4">
+              {/* Field 1: Medicine Name */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Medicine Name</label>
+                <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                  Medicine Name
+                </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Biogesic"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                  placeholder="e.g. Biogesic"
+                  className="w-full px-4 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-purple-500 transition-all"
                 />
               </div>
 
-              {/* Medicine Strength & Type of Medicine */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row: Medicine Strength & Type of Medicine */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Medicine Strength</label>
-                  <div className="flex gap-2">
+                  <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                    Medicine Strength
+                  </label>
+                  <div className="flex items-center gap-2">
                     <input
-                      type="text"
+                      type="number"
+                      min="1"
                       required
-                      placeholder="500"
                       value={strengthVal}
                       onChange={(e) => setStrengthVal(e.target.value)}
-                      className="flex-1 min-w-0 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                      placeholder="500"
+                      className="flex-1 px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
                     />
                     <select
                       value={strengthUnit}
                       onChange={(e) => setStrengthUnit(e.target.value)}
-                      className="w-24 shrink-0 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-2 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer font-medium"
+                      className="w-24 px-3 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                     >
-                      <option value="mg">mg</option>
-                      <option value="g">g</option>
-                      <option value="mcg">mcg</option>
-                      <option value="ml">ml</option>
-                      <option value="IU">IU</option>
-                      <option value="%">%</option>
-                      <option value="mEq">mEq</option>
-                      <option value="mg/ml">mg/ml</option>
-                      <option value="puffs">puffs</option>
-                      <option value="drops">drops</option>
-                      <option value="units">units</option>
+                      <option value="mg" className="dark:bg-[#131d27]">mg</option>
+                      <option value="g" className="dark:bg-[#131d27]">g</option>
+                      <option value="ml" className="dark:bg-[#131d27]">ml</option>
+                      <option value="mcg" className="dark:bg-[#131d27]">mcg</option>
+                      <option value="IU" className="dark:bg-[#131d27]">IU</option>
+                      <option value="drop" className="dark:bg-[#131d27]">drop</option>
+                      <option value="tablet" className="dark:bg-[#131d27]">tablet</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Type of Medicine</label>
+                  <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                    Type of Medicine
+                  </label>
                   <select
                     value={dosageForm}
                     onChange={(e) => setDosageForm(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer font-medium"
+                    className="w-full px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                   >
-                    <option value="Capsule">Capsule</option>
-                    <option value="Tablet">Tablet</option>
-                    <option value="Syrup">Syrup</option>
-                    <option value="Injection">Injection</option>
-                    <option value="Drops">Drops</option>
-                    <option value="Inhaler">Inhaler</option>
-                    <option value="Other">Other</option>
+                    <option value="Capsule" className="dark:bg-[#131d27]">Capsule</option>
+                    <option value="Tablet" className="dark:bg-[#131d27]">Tablet</option>
+                    <option value="Syrup" className="dark:bg-[#131d27]">Syrup</option>
+                    <option value="Injection" className="dark:bg-[#131d27]">Injection</option>
+                    <option value="Drops" className="dark:bg-[#131d27]">Drops</option>
+                    <option value="Ointment" className="dark:bg-[#131d27]">Ointment</option>
+                    <option value="Inhaler" className="dark:bg-[#131d27]">Inhaler</option>
+                    <option value="Patch" className="dark:bg-[#131d27]">Patch</option>
+                    <option value="Suppository" className="dark:bg-[#131d27]">Suppository</option>
                   </select>
                 </div>
               </div>
 
-              {/* Stock Quantity & Refill Threshold */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Row: How Many Do You Have? & Alert Me When Stock Reaches */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">How Many Do You Have?</label>
-                  <div className="flex gap-2">
+                  <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                    How Many Do You Have?
+                  </label>
+                  <div className="flex items-center gap-2">
                     <input
                       type="number"
-                      min="0"
+                      min="1"
                       required
-                      placeholder="30"
                       value={stock}
                       onChange={(e) => setStock(e.target.value)}
-                      className="flex-1 min-w-0 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                      placeholder="30"
+                      className="flex-1 px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
                     />
                     <select
                       value={stockUnit}
                       onChange={(e) => setStockUnit(e.target.value)}
-                      className="w-28 shrink-0 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-2 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer font-medium"
+                      className="w-28 px-3 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                     >
-                      <option value="capsules">capsules</option>
-                      <option value="tablets">tablets</option>
-                      <option value="doses">doses</option>
-                      <option value="ml">ml</option>
-                      <option value="pills">pills</option>
+                      <option value="capsules" className="dark:bg-[#131d27]">capsules</option>
+                      <option value="tablets" className="dark:bg-[#131d27]">tablets</option>
+                      <option value="pills" className="dark:bg-[#131d27]">pills</option>
+                      <option value="bottles" className="dark:bg-[#131d27]">bottles</option>
+                      <option value="vials" className="dark:bg-[#131d27]">vials</option>
+                      <option value="packs" className="dark:bg-[#131d27]">packs</option>
+                      <option value="pieces" className="dark:bg-[#131d27]">pieces</option>
+                      <option value="ml" className="dark:bg-[#131d27]">ml</option>
                     </select>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Alert Me When Stock Reaches</label>
+                  <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                    Alert Me When Stock Reaches
+                  </label>
                   <input
                     type="number"
-                    min="0"
+                    min="1"
                     required
-                    placeholder="10"
                     value={threshold}
                     onChange={(e) => setThreshold(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                    placeholder="10"
+                    className="w-full px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
                   />
                 </div>
               </div>
 
-              {/* Expiration Date Field */}
+              {/* Expiration Date (Optional) */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Expiration Date (Optional)</label>
+                <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                  Expiration Date (Optional)
+                </label>
                 <input
                   type="date"
                   value={expirationDate}
                   onChange={(e) => setExpirationDate(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                  className="w-full px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-[#1e2436]">
+              {/* Medicine Photo / Picture Upload (Optional) */}
+              <div>
+                <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
+                  Medicine Photo (Optional)
+                </label>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                {imageData ? (
+                  <div className="flex items-center justify-between p-2.5 rounded-xl border border-purple-500/40 bg-purple-500/5">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl overflow-hidden border border-purple-500/30 shrink-0 flex items-center justify-center bg-[#F3F6F9] dark:bg-[#182635]">
+                        <img src={imageData} alt="Medicine preview" className="w-full h-full object-cover rounded-2xl" style={{ width: '44px', height: '44px' }} />
+                      </div>
+                      <div>
+                        <span className="text-xs font-semibold text-[#1E2837] dark:text-white block">Custom Photo Attached</span>
+                        <span className="text-[10px] text-[#8B9DA8]">Matches default icon size identically</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="px-2.5 py-1 text-[11px] font-semibold text-purple-600 dark:text-purple-400 hover:underline"
+                      >
+                        Change
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setImageData('')}
+                        className="p-1 text-[#8B9DA8] hover:text-rose-500 transition-colors"
+                        title="Remove photo (use default icon)"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-2.5 px-3.5 rounded-xl border border-dashed border-[#E3E8EE] dark:border-[#26374a] hover:border-purple-500 bg-[#F3F6F9]/40 dark:bg-[#182635]/30 hover:bg-purple-500/5 transition-all flex items-center justify-between text-xs text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                        <Camera className="w-4 h-4" />
+                      </div>
+                      <div className="text-left">
+                        <span className="block font-medium text-[#1E2837] dark:text-white">Upload Medicine Photo</span>
+                        <span className="text-[10px] text-[#8B9DA8]">(Leave blank to use default icon)</span>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400">Select</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Action Buttons (matching screenshot) */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E3E8EE] dark:border-[#1e2d3d]">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold transition-colors"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-semibold border border-[#E3E8EE] dark:border-[#26374a] hover:bg-[#F3F6F9] dark:hover:bg-[#182635] text-[#64748B] dark:text-[#859ba8] transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-2.5 rounded-xl text-xs sm:text-sm font-semibold bg-[#8b5cf6] hover:bg-[#7c3aed] text-white shadow-lg shadow-purple-500/25 transition-all flex items-center justify-center gap-2"
                 >
-                  <span>{submitting ? 'Saving...' : 'Add to Stock Inventory'}</span>
+                  <span>{submitting ? 'Adding...' : 'Add to Stock Inventory'}</span>
                 </button>
               </div>
             </form>
@@ -728,91 +773,61 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
         </div>
       )}
 
-      {/* Custom Add Stock Modal */}
+      {/* RESTOCK MODAL */}
       {showRestockModal && restockMedObj && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="w-full max-w-md bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-6 shadow-2xl space-y-5 text-slate-900 dark:text-white">
-
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1e2436] pb-3.5">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <Boxes className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Add Stock</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{restockMedObj.name} ({restockMedObj.strength || restockMedObj.dosage})</p>
-                </div>
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-md my-auto max-h-[90vh] bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-3xl p-6 shadow-2xl animate-fadeIn space-y-4 overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+              <div className="flex items-center gap-2">
+                <PackagePlus className="w-5 h-5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">
+                  Restock {restockMedObj.name}
+                </h3>
               </div>
               <button
                 type="button"
-                onClick={() => {
-                  setShowRestockModal(false);
-                  setRestockMedObj(null);
-                }}
-                className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1c2234] text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors"
+                onClick={() => setShowRestockModal(false)}
+                className="p-1 rounded-lg text-[#8B9DA8] hover:text-[#1E2837]"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {restockMsg.text && (
-              <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                restockMsg.isError ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'
-              }`}>
-                {restockMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
-                <span>{restockMsg.text}</span>
+              <div className={`p-2.5 rounded-xl text-xs ${restockMsg.isError ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                {restockMsg.text}
               </div>
             )}
 
             <form onSubmit={handleConfirmRestock} className="space-y-4">
-              <div className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl p-3 flex items-center justify-between text-xs">
-                <span className="text-slate-500 dark:text-slate-400">Current Stock:</span>
-                <span className="font-bold text-slate-900 dark:text-white">
-                  {restockMedObj.stock} {restockMedObj.stock_unit || 'capsules'}
-                </span>
-              </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Amount to Add:</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={addStockAmount}
-                    onChange={(e) => setAddStockAmount(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  />
-                  <span className="text-xs font-medium text-slate-500 dark:text-slate-400 shrink-0">
-                    {restockMedObj.stock_unit || 'capsules'}
-                  </span>
-                </div>
+                <label className="block text-xs font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                  Quantity to Add ({restockMedObj.stock_unit || 'tablets'}):
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={addStockAmount}
+                  onChange={(e) => setAddStockAmount(e.target.value)}
+                  className="w-full px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                />
               </div>
 
-              <div className="bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 rounded-xl p-3 flex items-center justify-between text-xs">
-                <span className="text-purple-700 dark:text-purple-300 font-semibold">New Stock:</span>
-                <span className="font-extrabold text-purple-600 dark:text-purple-400 text-sm">
-                  {(restockMedObj.stock || 0) + (parseInt(addStockAmount, 10) || 0)} {restockMedObj.stock_unit || 'capsules'}
-                </span>
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-[#1e2436]">
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowRestockModal(false);
-                    setRestockMedObj(null);
-                  }}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold transition-colors"
+                  onClick={() => setShowRestockModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#64748B] hover:bg-[#F3F6F9]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={restocking}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#2E7D7E] hover:bg-[#26696a] text-white shadow-sm"
                 >
-                  <span>{restocking ? 'Adding...' : 'Add Stock'}</span>
+                  {restocking ? 'Updating...' : 'Confirm Restock'}
                 </button>
               </div>
             </form>
@@ -820,37 +835,28 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
         </div>
       )}
 
-      {/* Confirmation Modal for Deleting Medication */}
+      {/* DELETE CONFIRMATION MODAL */}
       {pendingDeleteMed && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn"
-          onClick={() => setPendingDeleteMed(null)}
-        >
-          <div
-            className="w-full max-w-md bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-6 shadow-xl space-y-4 text-slate-900 dark:text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Medication?</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Are you sure you want to delete <strong className="text-slate-900 dark:text-white">{pendingDeleteMed.name}</strong> from stock inventory? This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1e2436]">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">Delete Medication?</h3>
+            <p className="text-xs text-[#8B9DA8]">
+              Are you sure you want to remove <span className="font-bold text-[#1E2837] dark:text-white">{pendingDeleteMed.name}</span>?
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setPendingDeleteMed(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#262f46] transition-colors"
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-[#64748B]"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={confirmDeleteMedication}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-colors"
+                onClick={confirmDeleteMed}
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm"
               >
-                Delete Medication
+                Delete
               </button>
             </div>
           </div>

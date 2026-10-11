@@ -1,25 +1,40 @@
 import React, { useEffect, useState } from 'react';
-import { Pill, Bell, History, Check, Sparkles, BarChart3, Activity } from 'lucide-react';
+import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
-import { User, DashboardDataResponse } from '../types';
+import { User, DashboardDataResponse, Schedule, HistoryLog } from '../types';
+import { formatTimeWithAmPm } from '../utils/timeFormat';
 
 interface DashboardViewProps {
   user: User | null;
   onDataChange?: () => void;
+  onNavigate?: (tab: string) => void;
 }
 
-export default function DashboardView({ user, onDataChange }: DashboardViewProps): React.JSX.Element {
+export default function DashboardView({ user, onDataChange, onNavigate }: DashboardViewProps): React.JSX.Element {
   const [data, setData] = useState<DashboardDataResponse | null>(null);
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchDashboard = async () => {
     if (!user?.user_id) return;
     setLoading(true);
-    const res = await callApi<DashboardDataResponse>('get_dashboard_data', user.user_id);
-    if (res.success) {
-      setData(res as DashboardDataResponse);
+    try {
+      const [dashRes, schRes] = await Promise.all([
+        callApi<DashboardDataResponse>('get_dashboard_data', user.user_id),
+        callApi('get_schedules', user.user_id)
+      ]);
+
+      if (dashRes && dashRes.success) {
+        setData(dashRes as DashboardDataResponse);
+      }
+      if (schRes && schRes.success) {
+        setSchedules(schRes.schedules || []);
+      }
+    } catch (e) {
+      console.error('Failed fetching dashboard info', e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -35,231 +50,246 @@ export default function DashboardView({ user, onDataChange }: DashboardViewProps
     }
   };
 
-  if (loading && !data) {
-    return (
-      <div className="p-6 space-y-4 animate-pulse">
-        <div className="grid grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-28 bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4">
-              <div className="h-4 w-24 bg-slate-200 dark:bg-[#222838] rounded mb-3"></div>
-              <div className="h-8 w-16 bg-slate-200 dark:bg-[#222838] rounded"></div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   const {
     total_meds = 0,
-    low_stock = 0,
     doses_taken = 0,
-    adherence_rate = '0%',
-    weekly_counts = [0, 0, 0, 0, 0, 0, 0],
     due_meds = [],
     recent_history = []
   } = data || {};
 
-  const days: string[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const maxWeekly: number = Math.max(...weekly_counts, 4);
+  // Compute stats for the 4 top cards
+  const totalDosesToday = schedules.length > 0 ? schedules.length : (due_meds.length + doses_taken);
+  const takenCount = doses_taken > 0 ? doses_taken : 0;
+  const upcomingCount = Math.max(0, due_meds.length > 0 ? due_meds.length : (totalDosesToday - takenCount));
+
+  // Determine which schedules to show in "Today's Schedule"
+  const todayScheduleItems = schedules.length > 0 ? schedules : due_meds;
+
+  const colorPalettes = [
+    { circle: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
+    { circle: 'bg-teal-100 dark:bg-teal-500/20 text-[#2E7D7E] dark:text-[#2dd4bf]', border: 'border-teal-200 dark:border-teal-500/30' },
+    { circle: 'bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400', border: 'border-orange-200 dark:border-orange-500/30' },
+    { circle: 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400', border: 'border-amber-200 dark:border-amber-500/30' },
+  ];
 
   return (
-    <div className="p-5 space-y-5 overflow-y-auto h-full pr-6 transition-colors duration-150">
-
-      {/* Top 4 Summary Cards - Neutral Containers with Restrained Accent Hierarchy */}
-      <div className="grid grid-cols-4 gap-4">
-
-        {/* Stat 1: Active Medications */}
-        <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4 h-[115px] flex flex-col justify-between shadow-sm hover:border-slate-300 dark:hover:border-[#2b334a] transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Active Medications</span>
-            <div className="w-7 h-7 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
-              <Pill className="w-3.5 h-3.5" />
-            </div>
+    <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200 gap-4 sm:gap-5">
+      {/* 1. TOP SECTION: 4 Summary Stat Cards (Fully Responsive Grid) */}
+      <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {/* Card 1: Total Medications */}
+        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-teal-50 dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center shrink-0">
+            <Pill className="w-5 h-5 -rotate-45" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{total_meds}</span>
+          <div className="min-w-0">
+            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+              {total_meds}
+            </span>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+              Total Medications
+            </p>
           </div>
-          <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">In Active Inventory</span>
         </div>
 
-        {/* Stat 2: Adherence Rate */}
-        <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4 h-[115px] flex flex-col justify-between shadow-sm hover:border-slate-300 dark:hover:border-[#2b334a] transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Adherence Rate</span>
-            <div className="w-7 h-7 rounded-lg bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-              <Activity className="w-3.5 h-3.5" />
-            </div>
+        {/* Card 2: Today's Doses */}
+        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+            <Calendar className="w-5 h-5" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{adherence_rate}</span>
+          <div className="min-w-0">
+            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+              {totalDosesToday}
+            </span>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+              Today's Doses
+            </p>
           </div>
-          <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">Daily On-Schedule</span>
         </div>
 
-        {/* Stat 3: Low Stock Alerts */}
-        <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4 h-[115px] flex flex-col justify-between shadow-sm hover:border-slate-300 dark:hover:border-[#2b334a] transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Low Stock Alerts</span>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
-              low_stock > 0
-                ? 'bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-500/15 dark:text-amber-400 dark:border-amber-500/30'
-                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-            }`}>
-              {low_stock > 0 ? 'ATTENTION' : 'OPTIMAL'}
-            </span>
+        {/* Card 3: Taken */}
+        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+            <Check className="w-5 h-5 stroke-[2.5]" />
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className={`text-3xl font-bold tracking-tight ${low_stock > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-slate-900 dark:text-white'}`}>
-              {low_stock}
+          <div className="min-w-0">
+            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+              {takenCount}
             </span>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+              Taken
+            </p>
           </div>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">Items below threshold</span>
         </div>
 
-        {/* Stat 4: Doses Logged */}
-        <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4 h-[115px] flex flex-col justify-between shadow-sm hover:border-slate-300 dark:hover:border-[#2b334a] transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Doses Logged</span>
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-[#1e2436] dark:text-slate-300 dark:border-slate-700/50">
-              HISTORY
+        {/* Card 4: Upcoming */}
+        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
+          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-orange-50 dark:bg-orange-500/10 text-orange-500 dark:text-orange-400 flex items-center justify-center shrink-0">
+            <Clock className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+              {upcomingCount}
             </span>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+              Upcoming
+            </p>
           </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{doses_taken}</span>
-          </div>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400">Total completed doses</span>
         </div>
       </div>
 
-      {/* Middle Section: Due Right Now & Weekly Chart */}
-      <div className="grid grid-cols-10 gap-4">
-
-        {/* Due Right Now Panel (6 cols) */}
-        <div className="col-span-6 bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl h-[280px] flex flex-col overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-200 dark:border-[#1e2436]">
+      {/* 2. BOTTOM SECTION: Fully Responsive Desktop Layout */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5 items-stretch overflow-hidden">
+        {/* Left Column: Today's Schedule Card (ONLY internal items list scrolls) */}
+        <div className="md:col-span-7 xl:col-span-7 2xl:col-span-8 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col h-full overflow-hidden">
+          {/* Card Header (Fixed inside card, never scrolls) */}
+          <div className="shrink-0 flex items-center justify-between pb-3 sm:pb-3.5 border-b border-[#E3E8EE] dark:border-[#1c3345] mb-3">
             <div className="flex items-center gap-2">
-              <Bell className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <h3 className="font-bold text-slate-900 dark:text-white text-sm">Due Right Now</h3>
+              <Calendar className="w-4 h-4 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+              <h2 className="text-sm font-bold text-[#1E2837] dark:text-white tracking-tight">
+                Today's Schedule
+              </h2>
             </div>
-            <span className={`text-[10px] font-bold px-2.5 py-1 rounded-md ${
-              due_meds.length > 0
-                ? 'bg-purple-50 text-purple-700 border border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-500/30'
-                : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-            }`}>
-              {due_meds.length > 0 ? `${due_meds.length} Due` : 'Caught Up'}
-            </span>
+            <button
+              type="button"
+              onClick={() => onNavigate && onNavigate('IntakeFrame')}
+              className="text-xs font-semibold text-[#2E7D7E] dark:text-[#2dd4bf] hover:underline flex items-center gap-1"
+            >
+              <span>View All</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-            {due_meds.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400 py-8">
-                <Sparkles className="w-6 h-6 text-amber-500 dark:text-amber-400 mb-2" />
-                <span className="font-semibold text-xs text-slate-700 dark:text-slate-300">You are all caught up on your doses!</span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">No pending medication reminders due at this moment.</span>
+          {/* Schedule Items List: ONLY THIS SCROLLS */}
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1.5 space-y-2.5">
+            {todayScheduleItems.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center py-10 text-center text-[#8B9DA8] dark:text-[#859ba8] space-y-2">
+                <Pill className="w-8 h-8 mx-auto text-[#2E7D7E]/50 dark:text-[#2dd4bf]/50" />
+                <p className="text-xs font-medium">No medication doses scheduled for today.</p>
+                <button
+                  type="button"
+                  onClick={() => onNavigate && onNavigate('IntakeFrame')}
+                  className="mt-2 px-4 py-2 bg-[#2E7D7E] text-white text-xs font-semibold rounded-xl hover:bg-[#26696a] transition-all inline-flex items-center gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Schedule Medication</span>
+                </button>
               </div>
             ) : (
-              due_meds.map((med) => (
-                <div
-                  key={med.med_id}
-                  className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] hover:border-purple-300 dark:hover:border-purple-500/40 rounded-xl p-3 flex items-center justify-between transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-                      <Pill className="w-4 h-4" />
+              todayScheduleItems.map((item, idx) => {
+                const palette = colorPalettes[idx % colorPalettes.length];
+                const medName = item.med_name || (item as any).name || 'Medication';
+                const timeStr = item.time_value ? formatTimeWithAmPm(item.time_value) : 'Scheduled';
+                const dosageStr = item.dosage || (item as any).strength || '1 tablet';
+                const instructions = item.instructions || `${item.dose_per_intake || 1} ${item.dose_unit || 'tablet'}`;
+
+                return (
+                  <div
+                    key={item.schedule_id || (item as any).med_id || idx}
+                    className="p-3 rounded-xl border border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9]/50 dark:bg-[#172838]/40 hover:bg-[#F3F6F9] dark:hover:bg-[#172838] transition-all flex items-center justify-between gap-3"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {(item as any).image_path ? (
+                        <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center">
+                          <img src={(item as any).image_path} alt={medName} className="w-full h-full object-cover rounded-xl" style={{ width: '40px', height: '40px' }} />
+                        </div>
+                      ) : (
+                        <div className={`w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl flex items-center justify-center shrink-0 ${palette.circle}`}>
+                          <Pill className="w-5 h-5 -rotate-45" />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <h3 className="text-xs font-bold text-[#1E2837] dark:text-white truncate">
+                          {medName}
+                        </h3>
+                        <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] truncate mt-0.5">
+                          {dosageStr} • {instructions}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-slate-900 dark:text-white text-xs leading-snug">
-                        {med.med_name || med.name} {med.strength || med.dosage}
-                      </h4>
-                      <p className="text-[11px] text-sky-600 dark:text-sky-400">Scheduled at: {med.time_value}</p>
+
+                    <div className="flex items-center gap-2.5 shrink-0">
+                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#F3F6F9] dark:bg-[#172838] text-xs font-medium text-[#64748B] dark:text-[#859ba8]">
+                        <Clock className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                        <span>{timeStr}</span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleTakeDose(item.med_id)}
+                        title="Mark as Taken"
+                        className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0"
+                      >
+                        <Check className="w-4 h-4 stroke-[2.5]" />
+                      </button>
                     </div>
                   </div>
-
-                  <button
-                    onClick={() => handleTakeDose(med.med_id)}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs px-3.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors shadow-sm shrink-0"
-                  >
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Take Dose</span>
-                  </button>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
 
-        {/* Weekly Adherence Chart (4 cols) - Single Restrained Purple Palette */}
-        <div className="col-span-4 bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl h-[280px] flex flex-col p-4 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-2">
-              <BarChart3 className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Weekly Intake Adherence</span>
+        {/* Right Column: Stay on Track (Much Bigger Picture!) & Quick Actions (Responsive Desktop Layout) */}
+        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-4 shrink-0 h-full overflow-y-auto custom-scrollbar pr-0.5">
+          {/* Card: Stay on Track! With DYNAMIC RESPONSIVE BIG PICTURE */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 lg:p-6 shadow-sm relative overflow-hidden flex flex-col items-center text-center flex-1 min-h-[340px] lg:min-h-[400px] xl:min-h-[460px] justify-between">
+            {/* BIGGER PICTURE DISPLAY */}
+            <div className="w-full flex-1 flex items-center justify-center p-3 mb-3 bg-gradient-to-b from-[#2E7D7E]/5 via-[#2E7D7E]/2 to-transparent dark:from-[#2dd4bf]/10 dark:via-[#2dd4bf]/5 dark:to-transparent rounded-2xl border border-[#2E7D7E]/10 dark:border-[#2dd4bf]/10 overflow-hidden">
+              <img
+                src="/assets/stay_on_track_art.jpg"
+                alt="Health reminder illustration"
+                className="w-full h-full max-w-[280px] sm:max-w-[340px] md:max-w-[380px] lg:max-w-[440px] xl:max-w-[520px] 2xl:max-w-[600px] max-h-[300px] sm:max-h-[360px] lg:max-h-[420px] xl:max-h-[480px] 2xl:max-h-[560px] aspect-square object-contain rounded-2xl drop-shadow-xl hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <div className="shrink-0 space-y-1">
+              <h3 className="text-base sm:text-lg lg:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight">
+                Stay on track!
+              </h3>
+              <p className="text-xs sm:text-[13px] text-[#8B9DA8] dark:text-[#859ba8] leading-relaxed max-w-[280px] mx-auto">
+                Your health matters. Keep taking your medications on time.
+              </p>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] text-[11px] font-semibold mt-1 shadow-xs">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>Consistent Routine</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Card: Quick Actions */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm space-y-2.5 shrink-0">
+            <h3 className="text-xs font-bold text-[#1E2837] dark:text-white tracking-tight pb-2 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+              Quick Actions
             </h3>
-            <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-[#1e2436] dark:text-slate-300 dark:border-slate-700/50">
-              Mon - Sun
-            </span>
+
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate('MedicationFrame')}
+                className="w-full py-2.5 px-3.5 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Medication</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate('IntakeFrame')}
+                className="w-full py-2.5 px-3.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] hover:border-[#2E7D7E] dark:hover:border-[#2dd4bf] text-[#1E2837] dark:text-white font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <Calendar className="w-4 h-4 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                <span>View Schedule</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onNavigate && onNavigate('HistoryFrame')}
+                className="w-full py-2.5 px-3.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] hover:border-[#2E7D7E] dark:hover:border-[#2dd4bf] text-[#1E2837] dark:text-white font-semibold text-xs rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                <FileText className="w-4 h-4 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                <span>View Reports</span>
+              </button>
+            </div>
           </div>
-
-          <div className="flex-1 flex items-end justify-between gap-2 pt-2 pb-1 border-b border-slate-200 dark:border-[#1e2436]">
-            {days.map((day, idx) => {
-              const val = weekly_counts[idx] || 0;
-              const heightPct = Math.max(8, Math.round((val / maxWeekly) * 100));
-              const barColor = val === 0 ? 'bg-slate-200 dark:bg-[#222838]' : 'bg-purple-600 dark:bg-purple-500';
-
-              return (
-                <div key={day} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-                  <div
-                    style={{ height: `${heightPct}%` }}
-                    className={`w-full max-w-[18px] rounded-t-sm transition-all duration-300 ${barColor}`}
-                    title={`${day}: ${val} doses`}
-                  />
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">{day}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Bottom Section: Recent Activity Log */}
-      <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl h-[220px] flex flex-col overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-[#1e2436]">
-          <h3 className="font-bold text-slate-900 dark:text-white text-xs flex items-center gap-2">
-            <History className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-            <span>Recent Activity Log</span>
-          </h3>
-          <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-slate-100 dark:bg-[#1e2436] text-slate-600 dark:text-slate-400">
-            Latest Logs
-          </span>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-3 space-y-2">
-          {recent_history.length === 0 ? (
-            <div className="text-center text-slate-500 dark:text-slate-400 text-xs py-8">No logs recorded yet.</div>
-          ) : (
-            recent_history.map((log) => {
-              const isTaken = log.status === 'TAKEN';
-              return (
-                <div
-                  key={log.log_id}
-                  className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-4 py-2 flex items-center justify-between text-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
-                      isTaken
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30'
-                    }`}>
-                      {log.status}
-                    </span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{log.med_name}</span>
-                  </div>
-                  <span className="text-slate-500 dark:text-slate-400 text-[11px] font-mono">{log.timestamp}</span>
-                </div>
-              );
-            })
-          )}
         </div>
       </div>
     </div>

@@ -160,10 +160,23 @@ class NotificationWorker:
     def _check_offline_popups(self):
         pass
 
+def _format_time_am_pm(time_val):
+    if not time_val:
+        return ""
+    s = str(time_val).strip()
+    if "AM" in s.upper() or "PM" in s.upper():
+        return s
+    try:
+        from datetime import datetime
+        dt = datetime.strptime(s[:5], "%H:%M")
+        return dt.strftime("%I:%M %p")
+    except Exception:
+        return s
+
     def _generate_email_html(self, user_name, due_meds, today_str):
         med_rows = ""
         for med in due_meds:
-            time_display = med.get('time_value', 'Today')
+            time_display = _format_time_am_pm(med.get('time_value')) or 'Today'
             med_rows += f"""
             <tr style="border-bottom: 1px solid #272e45;">
                 <td style="padding: 14px 16px; font-weight: bold; color: #ffffff; font-size: 14px;">
@@ -365,9 +378,9 @@ class NotificationWorker:
                         self.last_alert_timestamp = now_ts
                         title = "Medication Reminder"
                         if len(new_offline_due) == 1:
-                            single_med = new_offline_due[0]
                             time_str = single_med.get('time_value')
-                            time_text = f" scheduled at {time_str}" if time_str else ""
+                            time_fmt = _format_time_am_pm(time_str)
+                            time_text = f" scheduled at {time_fmt}" if time_fmt else ""
                             message = f"Time to take {single_med['name']} ({single_med['dosage']}){time_text}."
                         elif len(new_offline_due) <= 3:
                             med_names = ", ".join([f"{m['name']} ({m['dosage']})" for m in new_offline_due])

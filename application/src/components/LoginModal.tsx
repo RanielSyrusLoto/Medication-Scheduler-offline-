@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, Mail, User as UserIcon, AlertCircle, CheckCircle, ArrowLeft, KeyRound, ShieldCheck, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, User as UserIcon, AlertCircle, CheckCircle, ArrowLeft, KeyRound, Eye, EyeOff, Pill, Sun, Moon } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User } from '../types';
 
@@ -21,7 +21,7 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
   const [name, setName] = useState<string>('');
   const [identifier, setIdentifier] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [rememberMe, setRememberMe] = useState<boolean>(false);
+  const [rememberMe, setRememberMe] = useState<boolean>(true);
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
   const [resetIdent, setResetIdent] = useState<string>('');
@@ -32,6 +32,21 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
 
   const [message, setMessage] = useState<StatusMessage>({ text: '', isError: false });
   const [loading, setLoading] = useState<boolean>(false);
+
+  const [localTheme, setLocalTheme] = useState<string>(() => {
+    return localStorage.getItem('med_app_theme') || 'light';
+  });
+
+  const toggleLoginTheme = () => {
+    const nextTheme = localTheme === 'dark' ? 'light' : 'dark';
+    setLocalTheme(nextTheme);
+    try {
+      localStorage.setItem('med_app_theme', nextTheme);
+      document.documentElement.setAttribute('data-theme', nextTheme);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +78,7 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
           }
           onLoginSuccess(res.user);
         } else {
-          setMessage({ text: res.message || 'Invalid username/password.', isError: true });
+          setMessage({ text: res.message || 'Invalid username or password.', isError: true });
         }
       }
     } catch (err) {
@@ -136,302 +151,279 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="w-full max-w-md bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-8 shadow-2xl space-y-6 text-slate-900 dark:text-white">
+    <div className="fixed inset-0 bg-[#F3F6F9] dark:bg-[#0c1722] flex flex-col items-center justify-start sm:justify-center p-4 sm:p-6 select-none transition-colors duration-200 overflow-y-auto custom-scrollbar">
+      {/* Top Floating Theme Switcher */}
+      <div className="sticky top-0 self-start z-20 sm:absolute sm:top-6 sm:left-8 mb-3 sm:mb-0 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={toggleLoginTheme}
+          className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] text-xs font-semibold text-[#1E2837] dark:text-white shadow-sm hover:border-[#2E7D7E] transition-all"
+        >
+          {localTheme === 'dark' ? (
+            <>
+              <Moon className="w-3.5 h-3.5 text-[#2dd4bf]" />
+              <span className="tracking-wide uppercase text-[10px]">Dark Mode</span>
+            </>
+          ) : (
+            <>
+              <Sun className="w-3.5 h-3.5 text-amber-500" />
+              <span className="tracking-wide uppercase text-[10px]">Light Mode</span>
+            </>
+          )}
+        </button>
+      </div>
 
-        {/* Modal Brand Header */}
-        <div className="flex flex-col items-center text-center">
-          <img
-            src="/app_icon.png"
-            alt="MedScheduler Logo"
-            className="w-14 h-14 object-contain drop-shadow-md mb-3"
-          />
-          <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">Smart Medication Scheduler</h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Real-time Care & Medication Management System</p>
-        </div>
-
-        {viewMode === 'auth' && (
-          <>
-            {/* Auth Mode Tabs */}
-            <div className="grid grid-cols-2 bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-1 rounded-xl">
-              <button
-                type="button"
-                onClick={() => { setIsRegister(false); setMessage({ text: '', isError: false }); }}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                  !isRegister ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => { setIsRegister(true); setMessage({ text: '', isError: false }); }}
-                className={`py-2 text-xs font-semibold rounded-lg transition-all ${
-                  isRegister ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                Create Account
-              </button>
+      {/* Main Split Authentication Card */}
+      <div className="w-full max-w-[860px] lg:max-w-[980px] xl:max-w-[1100px] my-auto bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-3xl shadow-xl overflow-hidden grid grid-cols-1 md:grid-cols-2">
+        {/* Left Side: Form */}
+        <div className="p-8 sm:p-10 flex flex-col justify-center">
+          {/* Logo & Header */}
+          <div className="flex items-center gap-3.5 mb-7">
+            <div className="w-11 h-11 rounded-2xl bg-[#2E7D7E] flex items-center justify-center text-white shadow-md shadow-[#2E7D7E]/20 shrink-0">
+              <Pill className="w-6 h-6 -rotate-45" />
             </div>
+            <div>
+              <h2 className="text-base font-bold text-[#1E2837] dark:text-white leading-tight">
+                Smart Medication
+              </h2>
+              <h2 className="text-base font-bold text-[#1E2837] dark:text-white leading-tight">
+                Scheduler
+              </h2>
+              <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-0.5">
+                Take your meds. Live healthier.
+              </p>
+            </div>
+          </div>
 
-            {/* Alert Message Box */}
-            {message.text && (
-              <div className={`p-3 rounded-xl flex items-center gap-2.5 text-xs font-medium ${
-                message.isError ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'
-              }`}>
-                {message.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
-                <span>{message.text}</span>
-              </div>
-            )}
+          {/* Status Message Notification */}
+          {message.text && (
+            <div
+              className={`p-3 rounded-xl mb-5 flex items-center gap-2.5 text-xs animate-fadeIn ${
+                message.isError
+                  ? 'bg-rose-50 text-rose-700 dark:bg-rose-500/10 dark:text-rose-400 border border-rose-200 dark:border-rose-500/20'
+                  : 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20'
+              }`}
+            >
+              {message.isError ? (
+                <AlertCircle className="w-4 h-4 shrink-0" />
+              ) : (
+                <CheckCircle className="w-4 h-4 shrink-0" />
+              )}
+              <span className="font-medium">{message.text}</span>
+            </div>
+          )}
 
+          {/* Form Content */}
+          {viewMode === 'auth' ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               {isRegister && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Full Name</label>
-                  <div className="relative">
-                    <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Rene Baterbonia"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Email / Username</label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+                  <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8B9DA8] dark:text-[#859ba8]">
+                    <UserIcon className="w-4 h-4" />
+                  </div>
                   <input
                     type="text"
                     required
-                    placeholder="name@gmail.com"
-                    value={identifier}
-                    onChange={(e) => setIdentifier(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Full Name"
+                    className="w-full pl-10 pr-4 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] dark:placeholder-[#859ba8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] transition-all"
                   />
                 </div>
+              )}
+
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8B9DA8] dark:text-[#859ba8]">
+                  <UserIcon className="w-4 h-4" />
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
+                  placeholder="Username or Email"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] dark:placeholder-[#859ba8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] transition-all"
+                />
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-9 pr-10 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors"
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8B9DA8] dark:text-[#859ba8]">
+                  <Lock className="w-4 h-4" />
                 </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Password"
+                  className="w-full pl-10 pr-10 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] dark:placeholder-[#859ba8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white transition-colors"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
 
               {!isRegister && (
-                <div className="flex items-center justify-between text-xs pt-0.5">
-                  <label className="flex items-center gap-2 cursor-pointer text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+                <div className="flex items-center justify-between pt-1 pb-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
                     <input
                       type="checkbox"
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-slate-300 dark:border-[#262f46] bg-slate-50 dark:bg-[#1c2234] text-indigo-600 focus:ring-0 cursor-pointer accent-indigo-600"
+                      className="w-3.5 h-3.5 rounded text-[#2E7D7E] focus:ring-0 cursor-pointer accent-[#2E7D7E]"
                     />
-                    <span className="select-none font-medium text-[11px]">Remember me 30d</span>
+                    <span className="text-xs text-[#64748B] dark:text-[#859ba8]">Remember me</span>
                   </label>
 
                   <button
                     type="button"
                     onClick={() => {
                       setViewMode('forgot_request');
-                      setResetIdent(identifier);
                       setMessage({ text: '', isError: false });
                     }}
-                    className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:text-sky-500 dark:hover:text-sky-300 transition-colors"
+                    className="text-xs text-[#2E7D7E] dark:text-[#2dd4bf] hover:underline font-medium"
                   >
                     Forgot password?
                   </button>
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50"
-              >
-                {loading ? 'Processing...' : isRegister ? 'Register Account' : 'Sign In to Dashboard'}
-              </button>
+              <div className="pt-2 space-y-2.5">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-md shadow-[#2E7D7E]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <span>{loading ? 'Processing...' : isRegister ? 'Register' : 'Login'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegister(!isRegister);
+                    setMessage({ text: '', isError: false });
+                  }}
+                  className="w-full py-2.5 px-4 bg-white dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] hover:border-[#2E7D7E] dark:hover:border-[#2dd4bf] text-[#1E2837] dark:text-white font-semibold text-xs rounded-xl transition-all"
+                >
+                  {isRegister ? 'Already have an account? Sign in' : 'Create Account'}
+                </button>
+              </div>
             </form>
-          </>
-        )}
-
-        {viewMode === 'forgot_request' && (
-          <div className="space-y-4">
-            <div className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-4 rounded-xl text-center space-y-1">
-              <div className="w-9 h-9 rounded-full bg-sky-50 dark:bg-sky-500/10 border border-sky-200 dark:border-sky-500/20 text-sky-600 dark:text-sky-400 mx-auto flex items-center justify-center">
-                <KeyRound className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white pt-1">Reset Password</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Enter your registered email address or username. We will send a 6-digit verification code to your Gmail.
-              </p>
-            </div>
-
-            {message.text && (
-              <div className={`p-3 rounded-xl flex items-center gap-2.5 text-xs font-medium ${
-                message.isError ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'
-              }`}>
-                {message.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
-                <span>{message.text}</span>
-              </div>
-            )}
-
+          ) : viewMode === 'forgot_request' ? (
             <form onSubmit={handleRequestReset} className="space-y-4">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Registered Email or Username</label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    required
-                    placeholder="name@gmail.com"
-                    value={resetIdent}
-                    onChange={(e) => setResetIdent(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-9 pr-4 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-sky-500"
-                  />
-                </div>
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('auth')}
+                  className="p-1.5 rounded-lg text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white hover:bg-[#F3F6F9] dark:hover:bg-[#172838]"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">Recover Password</h3>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-2.5 bg-sky-600 hover:bg-sky-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50"
-              >
-                {loading ? 'Sending Code...' : 'Send Verification Code'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setViewMode('auth'); setMessage({ text: '', isError: false }); }}
-                className="w-full flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors pt-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
-              </button>
-            </form>
-          </div>
-        )}
-
-        {viewMode === 'forgot_verify' && (
-          <div className="space-y-4">
-            <div className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-4 rounded-xl text-center space-y-1">
-              <div className="w-9 h-9 rounded-full bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
-                <ShieldCheck className="w-4 h-4" />
-              </div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white pt-1">Enter Verification Code</h3>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                A 6-digit verification code was sent to <span className="text-sky-600 dark:text-sky-400 font-mono">{resetEmail}</span>.
+              <p className="text-xs text-[#8B9DA8] dark:text-[#859ba8]">
+                Enter your username or registered email. We will send you a verification code.
               </p>
-            </div>
 
-            {message.text && (
-              <div className={`p-3 rounded-xl flex items-center gap-2.5 text-xs font-medium ${
-                message.isError ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'
-              }`}>
-                {message.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <CheckCircle className="w-4 h-4 shrink-0" />}
-                <span>{message.text}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleVerifyReset} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">6-Digit Verification Code</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8B9DA8]">
+                  <Mail className="w-4 h-4" />
+                </div>
                 <input
                   type="text"
                   required
-                  maxLength={6}
-                  placeholder="123456"
-                  value={otpCode}
-                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                  className="w-full bg-slate-50 dark:bg-[#151926] border border-slate-200 dark:border-[#262f46] rounded-xl px-4 py-2.5 text-center text-base font-mono tracking-widest text-sky-600 dark:text-sky-400 focus:outline-none focus:border-sky-500"
+                  value={resetIdent}
+                  onChange={(e) => setResetIdent(e.target.value)}
+                  placeholder="Username or Email"
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] transition-all"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">New Password</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Min 6 characters"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-9 pr-10 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors"
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Confirm New Password</label>
-                <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="Confirm password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-9 pr-10 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 focus:outline-none transition-colors"
-                    title={showPassword ? 'Hide password' : 'Show password'}
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all disabled:opacity-50 mt-2"
+                className="w-full py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-md shadow-[#2E7D7E]/20 transition-all flex items-center justify-center gap-2"
               >
-                {loading ? 'Verifying & Updating...' : 'Reset & Update Password'}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => { setViewMode('auth'); setMessage({ text: '', isError: false }); }}
-                className="w-full flex items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors pt-1"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Back to Sign In
+                <span>{loading ? 'Sending...' : 'Send Verification Code'}</span>
               </button>
             </form>
+          ) : (
+            <form onSubmit={handleVerifyReset} className="space-y-3.5">
+              <div className="flex items-center gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setViewMode('forgot_request')}
+                  className="p-1.5 rounded-lg text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white hover:bg-[#F3F6F9] dark:hover:bg-[#172838]"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">Verify & Set New Password</h3>
+              </div>
+
+              <div className="relative">
+                <input
+                  type="text"
+                  required
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value)}
+                  placeholder="Enter 6-digit Code"
+                  className="w-full px-4 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white text-center font-mono tracking-widest focus:outline-none focus:border-[#2E7D7E]"
+                />
+              </div>
+
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="New Password (min 6 chars)"
+                  className="w-full px-4 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                />
+              </div>
+
+              <div className="relative">
+                <input
+                  type="password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm New Password"
+                  className="w-full px-4 py-2.5 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+              >
+                <span>{loading ? 'Verifying...' : 'Reset Password'}</span>
+              </button>
+            </form>
+          )}
+        </div>
+
+        {/* Right Side: Medical Artwork Panel */}
+        <div className="relative hidden md:block min-h-[460px] lg:min-h-[540px] xl:min-h-[620px] bg-gradient-to-br from-[#E2F0EF] to-[#D5EAE9] dark:from-[#112733] dark:to-[#0a1822] overflow-hidden">
+          <img
+            src="/assets/login_medical_scene.jpg"
+            alt="Medical Still Life"
+            className="w-full h-full object-cover object-center transition-transform duration-500 hover:scale-105"
+          />
+
+          {/* Inspirational Tag matching reference */}
+          <div className="absolute top-8 right-8 max-w-[240px] text-right">
+            <p className="text-sm sm:text-base font-medium text-[#2E7D7E] dark:text-[#2dd4bf] italic drop-shadow-sm font-serif">
+              Small steps today, healthier tomorrow ♡
+            </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

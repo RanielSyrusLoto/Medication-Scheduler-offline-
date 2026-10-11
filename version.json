@@ -1,7 +1,7 @@
 {
-  "version": "1.1.2",
-  "release_date": "2026-10-09",
-  "release_notes": "Version 1.1.2: Converted application UI to TypeScript with explicit type definitions, enhanced Medication Schedule & Stock management, and updated application executable bundle.",
+  "version": "1.1.3",
+  "release_date": "2026-10-11",
+  "release_notes": "Version 1.1.3: Redesigned modern healthcare UI/UX with responsive layout, custom medication photo upload with exact icon sizing, Online Notifications with Gmail OTP verification, 12-hour AM/PM time display across all schedules, and in-app auto-updater.",
   "download_url": "https://raw.githubusercontent.com/vargas2006/Medication-Scheduler-offline-/main/SmartMedicationScheduler.zip",
   "mandatory": false
 }

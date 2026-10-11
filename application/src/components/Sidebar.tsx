@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Pill, History, Settings, LogOut, User as UserIcon, CheckCircle } from 'lucide-react';
+import { LayoutDashboard, Pill, CalendarClock, History, FileText, Settings, LogOut } from 'lucide-react';
 import { User } from '../types';
 
 interface SidebarProps {
@@ -10,118 +10,78 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProps): React.JSX.Element {
-  const displayName = user?.name || user?.username || 'User';
+  const displayName = user?.name || user?.username || 'John Lee Vargas';
+
+  const navItems = [
+    { id: 'DashboardFrame', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'MedicationFrame', label: 'My Medications', icon: Pill },
+    { id: 'IntakeFrame', label: 'Schedule', icon: CalendarClock },
+    { id: 'HistoryFrame', label: 'History', icon: History },
+    { id: 'ReportsFrame', label: 'Reports', icon: FileText },
+    { id: 'SettingsFrame', label: 'Settings', icon: Settings },
+  ];
 
   return (
-    <aside className="w-[230px] bg-slate-50 dark:bg-[#0f131d] border-r border-slate-200 dark:border-[#1e2436] flex flex-col h-full shrink-0 select-none transition-colors duration-150">
+    <aside className="w-[240px] bg-white dark:bg-[#09121b] border-r border-[#E3E8EE] dark:border-[#1c3345] flex flex-col h-full shrink-0 select-none transition-colors duration-200">
       {/* Brand Header */}
-      <div className="flex items-center gap-3 px-4 py-4 border-b border-slate-200 dark:border-[#1a1f2e]">
-        <img
-          src="/app_icon.png"
-          alt="MedScheduler Logo"
-          className="w-9 h-9 object-contain drop-shadow-sm shrink-0"
-        />
+      <div className="flex items-center gap-3 px-5 py-5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+        <div className="w-9 h-9 rounded-xl bg-[#2E7D7E] flex items-center justify-center text-white shadow-sm shrink-0">
+          <Pill className="w-5 h-5 -rotate-45" />
+        </div>
         <div className="flex flex-col min-w-0">
-          <span className="font-semibold text-slate-900 dark:text-white text-sm tracking-tight truncate">MedScheduler</span>
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 truncate font-normal">Smart Care Monitor</span>
+          <span className="font-bold text-[#1E2837] dark:text-white text-xs leading-tight">
+            Smart Medication
+          </span>
+          <span className="font-bold text-[#1E2837] dark:text-white text-xs leading-tight">
+            Scheduler
+          </span>
         </div>
       </div>
 
       {/* Navigation Links */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        <div>
-          <div className="px-2 mb-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Overview & Care</span>
-          </div>
-
-          <nav className="space-y-1">
+      <div className="flex-1 overflow-y-auto custom-scrollbar px-3.5 py-4 sm:py-5 space-y-1 sm:space-y-1.5">
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
             <button
-              onClick={() => setActiveTab('DashboardFrame')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'DashboardFrame'
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-600/15 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#171c2b] hover:text-slate-900 dark:hover:text-slate-200'
+              key={item.id}
+              onClick={() => setActiveTab(item.id)}
+              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                isActive
+                  ? 'bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] shadow-xs'
+                  : 'text-[#64748B] dark:text-[#859ba8] hover:bg-[#F3F6F9] dark:hover:bg-[#12222e] hover:text-[#1E2837] dark:hover:text-white'
               }`}
             >
-              <LayoutDashboard className={`w-4 h-4 ${activeTab === 'DashboardFrame' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-              <span>Dashboard</span>
+              <Icon className={`w-4 h-4 ${isActive ? 'text-[#2E7D7E] dark:text-[#2dd4bf]' : 'text-[#8B9DA8] dark:text-[#859ba8]'}`} />
+              <span>{item.label}</span>
             </button>
-
-            <button
-              onClick={() => setActiveTab('MedicationFrame')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'MedicationFrame'
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-600/15 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#171c2b] hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <Pill className={`w-4 h-4 ${activeTab === 'MedicationFrame' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-              <span>Medication Stock</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('IntakeFrame')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'IntakeFrame'
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-600/15 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#171c2b] hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <CheckCircle className={`w-4 h-4 ${activeTab === 'IntakeFrame' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-              <span>Medication Schedule</span>
-            </button>
-          </nav>
-        </div>
-
-        <div>
-          <div className="px-2 mb-2">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Records & Settings</span>
-          </div>
-
-          <nav className="space-y-1">
-            <button
-              onClick={() => setActiveTab('HistoryFrame')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'HistoryFrame'
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-600/15 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#171c2b] hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <History className={`w-4 h-4 ${activeTab === 'HistoryFrame' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-              <span>Intake History</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('SettingsFrame')}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === 'SettingsFrame'
-                  ? 'bg-purple-50 text-purple-700 dark:bg-purple-600/15 dark:text-purple-300 border border-purple-200 dark:border-purple-500/30 shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-[#171c2b] hover:text-slate-900 dark:hover:text-slate-200'
-              }`}
-            >
-              <Settings className={`w-4 h-4 ${activeTab === 'SettingsFrame' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-400'}`} />
-              <span>Settings</span>
-            </button>
-          </nav>
-        </div>
+          );
+        })}
       </div>
 
-      {/* User Footer */}
-      <div className="p-3 border-t border-slate-200 dark:border-[#1a1f2e]">
-        <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-xl p-2.5 flex items-center justify-between shadow-sm">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-[#222838] flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0">
-              <UserIcon className="w-3.5 h-3.5" />
+      {/* User Profile Footer */}
+      <div className="p-3.5 border-t border-[#E3E8EE] dark:border-[#1c3345]">
+        <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#F3F6F9] dark:hover:bg-[#12222e] transition-colors">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="relative w-8 h-8 rounded-full bg-[#2E7D7E]/10 dark:bg-[#26a69a]/20 border border-[#2E7D7E]/30 flex items-center justify-center text-[#2E7D7E] dark:text-[#2dd4bf] font-bold text-xs shrink-0">
+              {displayName.charAt(0).toUpperCase()}
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#43A047] border-2 border-white dark:border-[#09121b] rounded-full" />
             </div>
             <div className="flex flex-col min-w-0">
-              <span className="font-semibold text-slate-900 dark:text-white text-xs truncate">{displayName}</span>
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 truncate">Patient Profile</span>
+              <span className="font-semibold text-[#1E2837] dark:text-white text-xs truncate">
+                {displayName}
+              </span>
+              <span className="text-[10px] text-[#43A047] font-medium flex items-center gap-1">
+                Online
+              </span>
             </div>
           </div>
+
           <button
             onClick={onLogout}
             title="Log Out"
-            className="w-7 h-7 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors shrink-0"
+            className="w-7 h-7 rounded-lg text-[#8B9DA8] hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 flex items-center justify-center transition-colors shrink-0"
           >
             <LogOut className="w-3.5 h-3.5" />
           </button>

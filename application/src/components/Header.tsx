@@ -1,5 +1,5 @@
 import React from 'react';
-import { Calendar, Sun, Moon } from 'lucide-react';
+import { Calendar, Sun, Moon, Minus, Square, X } from 'lucide-react';
 import { User } from '../types';
 
 interface HeaderProps {
@@ -9,52 +9,56 @@ interface HeaderProps {
   onToggleTheme: () => void;
 }
 
-interface HeaderMeta {
-  tag: string;
-  title: string;
-  subtitle: string;
-}
+export default function Header({ activeTab, user, theme = 'light', onToggleTheme }: HeaderProps): React.JSX.Element {
+  const isDark = theme === 'dark';
+  const displayName = user?.name || user?.username || 'John Lee';
+  const firstName = displayName.split(' ')[0] || displayName;
 
-export default function Header({ activeTab, user, theme = 'dark', onToggleTheme }: HeaderProps): React.JSX.Element {
-  const displayName = user?.name || user?.username || 'User';
+  const currentHour = new Date().getHours();
+  let greetingTime = 'Good Morning';
+  if (currentHour >= 12 && currentHour < 17) {
+    greetingTime = 'Good Afternoon';
+  } else if (currentHour >= 17) {
+    greetingTime = 'Good Evening';
+  }
 
   const dateStr = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
+    weekday: 'short',
     month: 'short',
     day: 'numeric'
   });
 
-  const getHeaderMeta = (): HeaderMeta => {
+  const getHeaderMeta = () => {
     switch (activeTab) {
       case 'MedicationFrame':
         return {
-          tag: 'INVENTORY & STOCK',
           title: 'Medication Stock',
-          subtitle: 'Register new drugs, manage inventory levels, and configure refill alert thresholds.'
+          subtitle: 'Manage inventory, dosages, and refill alerts.'
         };
       case 'IntakeFrame':
         return {
-          tag: 'DOSE LOGGING',
-          title: 'Intake Medication',
-          subtitle: 'Select and log doses for your registered medications in real time.'
+          title: 'Medication Schedule',
+          subtitle: 'Plan recurring doses, view timetable, and log intakes.'
         };
       case 'HistoryFrame':
         return {
-          tag: 'AUDIT & INTAKE LOGS',
-          title: 'Intake History',
-          subtitle: 'Complete historical audit of your medication doses taken and schedule records.'
+          title: 'Medication History',
+          subtitle: 'Audit log of all taken doses, skips, and exported reports.'
+        };
+      case 'ReportsFrame':
+        return {
+          title: 'Adherence & Reports',
+          subtitle: 'Analyze your treatment consistency and medical compliance.'
         };
       case 'SettingsFrame':
         return {
-          tag: 'SYSTEM CONFIGURATION',
-          title: 'Settings & Preferences',
-          subtitle: 'Personalize application theme, profile details, and alert notifications.'
+          title: 'Settings',
+          subtitle: 'Configure application themes, sound alerts, and profile.'
         };
       default:
         return {
-          tag: 'REALTIME CARE MONITOR',
-          title: 'Dashboard Overview',
-          subtitle: `Welcome back, ${displayName}! Here is your medication schedule today.`
+          title: `${greetingTime}, ${firstName}!`,
+          subtitle: "Here's your medication overview for today."
         };
     }
   };
@@ -62,13 +66,14 @@ export default function Header({ activeTab, user, theme = 'dark', onToggleTheme 
   const meta = getHeaderMeta();
 
   return (
-    <header className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-[#1e2436] bg-white dark:bg-[#0f131d] shrink-0 transition-colors duration-150">
-      <div>
-        <div className="inline-flex items-center px-2 py-0.5 mb-1 rounded border text-[10px] font-bold tracking-wider text-purple-700 bg-purple-50 border-purple-200 dark:text-purple-300 dark:bg-purple-500/10 dark:border-purple-500/20">
-          <span>{meta.tag}</span>
-        </div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight leading-tight">{meta.title}</h1>
-        <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-normal">{meta.subtitle}</p>
+    <header className="flex items-center justify-between px-4 sm:px-6 lg:px-7 py-3 sm:py-4 bg-white dark:bg-[#13222f] border-b border-[#E3E8EE] dark:border-[#1c3345] transition-colors duration-200 shrink-0">
+      <div className="min-w-0 pr-4">
+        <h1 className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate">
+          {meta.title}
+        </h1>
+        <p className="text-xs text-[#8B9DA8] dark:text-[#859ba8] mt-0.5 truncate">
+          {meta.subtitle}
+        </p>
       </div>
 
       <div className="flex items-center gap-3">
@@ -76,26 +81,33 @@ export default function Header({ activeTab, user, theme = 'dark', onToggleTheme 
         <button
           type="button"
           onClick={onToggleTheme}
-          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          className="bg-slate-100 hover:bg-slate-200 dark:bg-[#151926] dark:hover:bg-[#1c2234] border border-slate-200 dark:border-[#222838] rounded-xl px-3 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all shadow-sm"
+          title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] text-[#1E2837] dark:text-white hover:border-[#2E7D7E] dark:hover:border-[#26a69a] transition-all shadow-sm"
         >
-          {theme === 'dark' ? (
+          {isDark ? (
             <>
               <Sun className="w-3.5 h-3.5 text-amber-400" />
-              <span className="hidden sm:inline text-xs text-slate-300">Light Mode</span>
+              <span className="text-[11px] font-medium text-slate-200">Light</span>
             </>
           ) : (
             <>
-              <Moon className="w-3.5 h-3.5 text-purple-600" />
-              <span className="hidden sm:inline text-xs text-slate-700">Dark Mode</span>
+              <Moon className="w-3.5 h-3.5 text-[#2E7D7E]" />
+              <span className="text-[11px] font-medium text-[#1E2837]">Dark</span>
             </>
           )}
         </button>
 
         {/* Date Display */}
-        <div className="bg-slate-100 dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-xl px-3.5 py-1.5 flex items-center gap-2 text-xs font-semibold text-slate-600 dark:text-slate-400 shadow-sm">
-          <Calendar className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
-          <span>{dateStr}</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] text-xs font-medium text-[#8B9DA8] dark:text-[#859ba8]">
+          <Calendar className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#26a69a]" />
+          <span className="text-[#1E2837] dark:text-slate-200">{dateStr}</span>
+        </div>
+
+        {/* Decorative Window Controls matching Desktop reference */}
+        <div className="flex items-center gap-1.5 ml-2 pl-3 border-l border-[#E3E8EE] dark:border-[#1c3345]">
+          <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-amber-400 transition-colors inline-block" />
+          <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-emerald-400 transition-colors inline-block" />
+          <span className="w-3 h-3 rounded-full bg-slate-200 dark:bg-slate-700 hover:bg-rose-400 transition-colors inline-block" />
         </div>
       </div>
     </header>

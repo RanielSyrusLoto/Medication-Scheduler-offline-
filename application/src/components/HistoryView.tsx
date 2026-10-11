@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, FileSpreadsheet, Trash2, History } from 'lucide-react';
+import { Calendar, FileSpreadsheet, Trash2, Filter, History, Check, Clock, AlertCircle, Search, X } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, HistoryLog } from '../types';
+import { formatTimeWithAmPm } from '../utils/timeFormat';
 
 interface HistoryViewProps {
   user: User | null;
 }
 
-type DateFilterType = 'ALL' | 'TODAY' | 'YESTERDAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'LAST_3_MONTHS' | 'CUSTOM';
+type DateFilterType = 'ALL' | 'TODAY' | 'YESTERDAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'CUSTOM';
 
 export default function HistoryView({ user }: HistoryViewProps): React.JSX.Element {
   const [history, setHistory] = useState<HistoryLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [exportMsg, setExportMsg] = useState<string>('');
   const [pendingDeleteId, setPendingDeleteId] = useState<number | null>(null);
+  const [searchTerm, setSearchTerm] = useState<string>('');
 
   const [dateFilter, setDateFilter] = useState<DateFilterType>('ALL');
   const [customStart, setCustomStart] = useState<string>('');
@@ -48,13 +50,23 @@ export default function HistoryView({ user }: HistoryViewProps): React.JSX.Eleme
     setExportMsg('');
     const res = await callApi('export_csv', user.user_id);
     if (res.success) {
-      setExportMsg(res.message || 'CSV report generated!');
+      setExportMsg(res.message || 'Exported to CSV successfully!');
+      setTimeout(() => setExportMsg(''), 4000);
     } else {
       setExportMsg('Export failed.');
     }
   };
 
   const filteredHistory = history.filter((log) => {
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      const matches =
+        (log.med_name || '').toLowerCase().includes(term) ||
+        (log.status || '').toLowerCase().includes(term) ||
+        (log.timestamp || '').toLowerCase().includes(term);
+      if (!matches) return false;
+    }
+
     if (dateFilter === 'ALL') return true;
     if (!log.timestamp) return true;
 
@@ -79,9 +91,6 @@ export default function HistoryView({ user }: HistoryViewProps): React.JSX.Eleme
     if (dateFilter === 'THIS_MONTH') {
       return diffDays >= 0 && diffDays <= 30;
     }
-    if (dateFilter === 'LAST_3_MONTHS') {
-      return diffDays >= 0 && diffDays <= 90;
-    }
     if (dateFilter === 'CUSTOM') {
       if (customStart && new Date(customStart) > itemDate) return false;
       if (customEnd) {
@@ -95,153 +104,172 @@ export default function HistoryView({ user }: HistoryViewProps): React.JSX.Eleme
   });
 
   return (
-    <div className="p-5 flex flex-col h-full overflow-hidden space-y-4 transition-colors duration-150">
-      {/* Main Table Container */}
-      <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl flex-1 flex flex-col overflow-hidden p-5 shadow-sm">
-
-        <div className="flex flex-col gap-3 mb-4 pb-3 border-b border-slate-200 dark:border-[#1e2436]">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <History className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-              <span>Intake History Audit</span>
-            </h3>
-
-            <span className="text-xs font-semibold text-purple-700 bg-purple-50 border border-purple-200 dark:text-purple-300 dark:bg-purple-500/15 dark:border-purple-500/20 px-2.5 py-0.5 rounded-md">
-              {filteredHistory.length} Logs
-            </span>
+    <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
+      {/* 1. STICKY TOP BAR: Search + Filters + Export (Fixed at Top) */}
+      <div className="shrink-0 pb-4 mb-4 border-b border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9] dark:bg-[#0c1722] z-10">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
+          {/* Search Input Box */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B9DA8]" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search history by medication name, status, date..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B9DA8] hover:text-[#1E2837]"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] px-3 py-1.5 rounded-xl text-xs">
-              <Calendar className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Filter Timeline:</span>
+          <div className="flex items-center gap-3 self-end sm:self-auto flex-wrap">
+            {/* Timeline Filter Selector */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
+              <Calendar className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value as DateFilterType)}
-                className="bg-transparent text-slate-900 dark:text-white font-bold focus:outline-none cursor-pointer"
+                className="bg-transparent focus:outline-none cursor-pointer"
               >
-                <option value="ALL" className="bg-white dark:bg-[#151926]">All Dates</option>
-                <option value="TODAY" className="bg-white dark:bg-[#151926]">Today</option>
-                <option value="YESTERDAY" className="bg-white dark:bg-[#151926]">Yesterday</option>
-                <option value="THIS_WEEK" className="bg-white dark:bg-[#151926]">This Week (7 Days)</option>
-                <option value="THIS_MONTH" className="bg-white dark:bg-[#151926]">This Month (30 Days)</option>
-                <option value="LAST_3_MONTHS" className="bg-white dark:bg-[#151926]">Last 3 Months (90 Days)</option>
-                <option value="CUSTOM" className="bg-white dark:bg-[#151926]">Custom Range</option>
+                <option value="ALL" className="dark:bg-[#13222f]">All Dates</option>
+                <option value="TODAY" className="dark:bg-[#13222f]">Today</option>
+                <option value="YESTERDAY" className="dark:bg-[#13222f]">Yesterday</option>
+                <option value="THIS_WEEK" className="dark:bg-[#13222f]">Past 7 Days</option>
+                <option value="THIS_MONTH" className="dark:bg-[#13222f]">Past 30 Days</option>
+                <option value="CUSTOM" className="dark:bg-[#13222f]">Custom Range</option>
               </select>
             </div>
-          </div>
 
-          {dateFilter === 'CUSTOM' && (
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-2 rounded-xl text-xs">
-              <span className="text-slate-500 dark:text-slate-400 font-medium">Start Date:</span>
-              <input
-                type="date"
-                value={customStart}
-                onChange={(e) => setCustomStart(e.target.value)}
-                className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#262f46] rounded-lg px-2 py-1 text-slate-900 dark:text-white text-xs focus:outline-none"
-              />
-              <span className="text-slate-500 dark:text-slate-400 font-medium">End Date:</span>
-              <input
-                type="date"
-                value={customEnd}
-                onChange={(e) => setCustomEnd(e.target.value)}
-                className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#262f46] rounded-lg px-2 py-1 text-slate-900 dark:text-white text-xs focus:outline-none"
-              />
-            </div>
-          )}
+            {/* Export CSV Button */}
+            <button
+              type="button"
+              onClick={handleExportCSV}
+              className="px-3.5 py-2 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] hover:border-[#2E7D7E] dark:hover:border-[#2dd4bf] text-[#1E2837] dark:text-white text-xs font-semibold rounded-xl shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+              <span>Export CSV</span>
+            </button>
+          </div>
         </div>
 
-        {/* History Records List */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-2">
-          {loading ? (
-            <div className="text-center text-slate-500 dark:text-slate-400 py-16 text-xs">Loading history logs...</div>
-          ) : filteredHistory.length === 0 ? (
-            <div className="text-center text-slate-500 dark:text-slate-400 py-20 text-xs">No history logs found for selected timeline filter.</div>
-          ) : (
-            filteredHistory.map((log) => {
-              const isTaken = log.status === 'TAKEN';
-              return (
-                <div
-                  key={log.log_id}
-                  className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] hover:border-slate-300 dark:hover:border-slate-700/60 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs transition-all"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-md ${
-                      isTaken
-                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
-                        : 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30'
-                    }`}>
-                      {log.status}
-                    </span>
-                    <span className="font-semibold text-slate-900 dark:text-slate-200 text-xs">{log.med_name}</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-slate-500 dark:text-slate-400 font-mono text-[11px]">{log.timestamp}</span>
-                    <button
-                      onClick={() => setPendingDeleteId(log.log_id)}
-                      title="Delete History Record"
-                      className="text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 p-1 transition-colors rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10"
+        {exportMsg && (
+          <div className="mt-3 p-3 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-xs font-medium animate-fadeIn">
+            {exportMsg}
+          </div>
+        )}
+      </div>
+
+      {/* 2. SCROLLABLE TABLE AREA */}
+      <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl shadow-sm custom-scrollbar">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left text-xs">
+            <thead className="sticky top-0 bg-[#F3F6F9] dark:bg-[#172838] z-10 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+              <tr className="text-[#8B9DA8] dark:text-[#859ba8] font-bold">
+                <th className="py-3.5 px-6">Date & Time</th>
+                <th className="py-3.5 px-6">Medication</th>
+                <th className="py-3.5 px-6">Dosage</th>
+                <th className="py-3.5 px-6">Status</th>
+                <th className="py-3.5 px-4 text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#E3E8EE] dark:divide-[#1c3345]">
+              {filteredHistory.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-[#8B9DA8] dark:text-[#859ba8]">
+                    No medication history records found for the selected filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredHistory.map((log) => {
+                  const isTaken = log.status === 'TAKEN';
+                  return (
+                    <tr
+                      key={log.log_id}
+                      className="hover:bg-[#F3F6F9]/60 dark:hover:bg-[#172838]/60 transition-colors"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                      <td className="py-3.5 px-6 font-medium text-[#1E2837] dark:text-white">
+                        {formatTimeWithAmPm(log.timestamp)}
+                      </td>
+                      <td className="py-3.5 px-6 font-bold text-[#1E2837] dark:text-white">
+                        {log.med_name}
+                      </td>
+                      <td className="py-3.5 px-6 text-[#64748B] dark:text-[#859ba8]">
+                        Standard Dose
+                      </td>
+                      <td className="py-3.5 px-6">
+                        <span
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                            isTaken
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
+                              : 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-500/15 dark:text-sky-400 dark:border-sky-500/30'
+                          }`}
+                        >
+                          {isTaken ? (
+                            <>
+                              <Check className="w-3 h-3 stroke-[2.5]" />
+                              <span>Taken</span>
+                            </>
+                          ) : (
+                            <>
+                              <Clock className="w-3 h-3" />
+                              <span>{log.status}</span>
+                            </>
+                          )}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setPendingDeleteId(log.log_id)}
+                          className="p-1 text-[#8B9DA8] hover:text-rose-500 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                          title="Delete entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Custom Confirmation Modal for Deleting History Record */}
+      {/* Delete Confirmation Modal */}
       {pendingDeleteId && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-          onClick={() => setPendingDeleteId(null)}
-        >
-          <div
-            className="w-full max-w-md bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-6 shadow-xl space-y-4 text-slate-900 dark:text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete History Record?</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Are you sure you want to delete this history record? This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">Delete Log Entry?</h3>
+            <p className="text-xs text-[#8B9DA8]">
+              Are you sure you want to delete this historical record?
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setPendingDeleteId(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#262f46] transition-colors"
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-[#64748B]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmDeleteLog}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-colors"
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm"
               >
-                Delete Record
+                Delete
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Footer Export Panel */}
-      <div className="flex items-center justify-between bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-xl px-5 py-3 shrink-0 shadow-sm">
-        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-          {exportMsg || 'Generate downloadable CSV record of medication intake history.'}
-        </span>
-        <button
-          onClick={handleExportCSV}
-          className="bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs px-4 py-2 rounded-xl flex items-center gap-2 transition-colors shadow-sm"
-        >
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>Export to CSV Report</span>
-        </button>
-      </div>
     </div>
   );
 }

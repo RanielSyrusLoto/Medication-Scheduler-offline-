@@ -45,7 +45,7 @@ def get_current_version():
                         return str(ver).strip()
             except Exception:
                 pass
-    return "1.1.2"
+    return "1.1.3"
 
 def compare_versions(v1, v2):
     """Return True if v2 > v1 (semver comparison e.g. 1.1.0 > 1.0.0)."""

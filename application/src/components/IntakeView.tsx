@@ -1,80 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Pill, Check, Search, Calendar, Clock, Plus, X, AlertCircle, LayoutList, LayoutGrid, Trash2, CheckCircle2 } from 'lucide-react';
+import { Pill, Check, Calendar, Clock, Plus, X, AlertCircle, Trash2, ChevronLeft, ChevronRight, Search, Droplets, Repeat, Info, Package } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, Schedule, Medication } from '../types';
-
-interface MedImageProps {
-  src?: string | null;
-  alt?: string;
-}
-
-function MedImage({ src, alt }: MedImageProps): React.JSX.Element {
-  const [hasError, setHasError] = useState<boolean>(false);
-
-  if (!src || hasError) {
-    return <Pill className="w-5 h-5 text-purple-600 dark:text-purple-400" />;
-  }
-
-  const imageSrc = src.startsWith('http') ? src : `file:///${src.replace(/\\/g, '/')}`;
-
-  return (
-    <img
-      src={imageSrc}
-      alt={alt}
-      className="w-full h-full object-cover"
-      onError={() => setHasError(true)}
-    />
-  );
-}
-
-function formatTime(timeStr?: string): string {
-  if (!timeStr) return '';
-  const str = timeStr.trim();
-  if (/am|pm/i.test(str)) {
-    return str.toUpperCase();
-  }
-  const parts = str.split(':');
-  if (parts.length >= 2) {
-    let hours = parseInt(parts[0], 10);
-    const minutes = parts[1].padStart(2, '0');
-    if (isNaN(hours)) return str;
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    if (hours === 0) hours = 12;
-    return `${hours}:${minutes} ${ampm}`;
-  }
-  return str;
-}
-
-function timeToMinutes(timeStr?: string): number {
-  if (!timeStr) return 0;
-  const str = timeStr.trim();
-  let hours = 0;
-  let minutes = 0;
-  if (/am|pm/i.test(str)) {
-    const isPM = /pm/i.test(str);
-    const clean = str.replace(/(am|pm)/i, '').trim();
-    const parts = clean.split(':');
-    hours = parseInt(parts[0], 10) || 0;
-    minutes = parseInt(parts[1], 10) || 0;
-    if (isPM && hours < 12) hours += 12;
-    if (!isPM && hours === 12) hours = 0;
-  } else {
-    const parts = str.split(':');
-    hours = parseInt(parts[0], 10) || 0;
-    minutes = parseInt(parts[1], 10) || 0;
-  }
-  return hours * 60 + minutes;
-}
+import { formatTimeWithAmPm } from '../utils/timeFormat';
 
 interface IntakeViewProps {
   user: User | null;
   onDataChange?: () => void;
-}
-
-interface ActionMessage {
-  text: string;
-  schId: number | null;
 }
 
 interface FormMessage {
@@ -82,34 +14,46 @@ interface FormMessage {
   isError: boolean;
 }
 
+function formatDateDisplay(dateStr?: string | null): { dateFormatted: string; dayName: string } {
+  if (!dateStr) return { dateFormatted: 'Ongoing', dayName: 'Continuous schedule' };
+  try {
+    const d = new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : ''));
+    if (isNaN(d.getTime())) return { dateFormatted: dateStr, dayName: '' };
+    return {
+      dateFormatted: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      dayName: d.toLocaleDateString('en-US', { weekday: 'long' })
+    };
+  } catch {
+    return { dateFormatted: dateStr, dayName: '' };
+  }
+}
+
 export default function IntakeView({ user, onDataChange }: IntakeViewProps): React.JSX.Element {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
-  const [dateFilter, setDateFilter] = useState<string>('today');
-  const [medFilter, setMedFilter] = useState<string>('all');
-  const [statusFilter, setStatusFilter] = useState<string>('active');
-  const [sortBy, setSortBy] = useState<string>('time');
-  const [message, setMessage] = useState<ActionMessage>({ text: '', schId: null });
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  // Month navigation state matching reference image
+  const [currentDate, setCurrentDate] = useState<Date>(new Date());
 
-  const [showModal, setShowModal] = useState<boolean>(false);
+  // Create Schedule Modal state
+  const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [selectedMedId, setSelectedMedId] = useState<string>('');
-  const [dosePerIntake, setDosePerIntake] = useState<string>('1');
-  const [doseUnit, setDoseUnit] = useState<string>('tablet');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
-  const [selectedTime, setSelectedTime] = useState<string>('08:00');
-  const [frequency, setFrequency] = useState<string>('Every day');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>('');
+  const [selectedTime, setSelectedTime] = useState<string>('08:00');
+  const [frequency, setFrequency] = useState<string>('Daily');
   const [instructions, setInstructions] = useState<string>('');
-
+  const [dosePerIntake, setDosePerIntake] = useState<string>('1');
+  const [doseUnit, setDoseUnit] = useState<string>('tablet');
   const [formMsg, setFormMsg] = useState<FormMessage>({ text: '', isError: false });
   const [submitting, setSubmitting] = useState<boolean>(false);
 
-  const fetchSchedulesAndInventory = async () => {
+  // Pending delete schedule modal
+  const [pendingDeleteSchedule, setPendingDeleteSchedule] = useState<Schedule | null>(null);
+
+  const fetchSchedulesAndMeds = async () => {
     if (!user?.user_id) return;
     setLoading(true);
     try {
@@ -118,44 +62,40 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
         callApi('get_medications', user.user_id)
       ]);
 
-      if (schRes.success) {
+      if (schRes && schRes.success) {
         setSchedules(schRes.schedules || []);
       }
-      if (medRes.success) {
+      if (medRes && medRes.success) {
         const meds = medRes.medications || [];
         setMedications(meds);
         if (meds.length > 0 && !selectedMedId) {
           setSelectedMedId(meds[0].med_id.toString());
         }
       }
-    } catch (err) {
-      console.error('Failed to fetch schedules', err);
+    } catch (e) {
+      console.error('Failed to fetch schedule data', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchSchedulesAndInventory();
+    fetchSchedulesAndMeds();
   }, [user]);
 
   const handleTakeDose = async (sch: Schedule) => {
-    if (!user?.user_id || (sch.stock || 0) <= 0) return;
+    if (!user?.user_id) return;
     try {
       const amt = (typeof sch.dose_per_intake === 'number' ? sch.dose_per_intake : parseInt(sch.dose_per_intake as any, 10)) || 1;
       const res = await callApi('take_dose', user.user_id, sch.med_id, amt);
-      if (res.success) {
-        setMessage({ text: `Dose of ${sch.med_name} logged as TAKEN!`, schId: sch.schedule_id });
-        fetchSchedulesAndInventory();
+      if (res && res.success) {
+        fetchSchedulesAndMeds();
         if (onDataChange) onDataChange();
-        setTimeout(() => setMessage({ text: '', schId: null }), 3000);
       }
-    } catch (err) {
-      console.error('Take dose error', err);
+    } catch (e) {
+      console.error('Error logging dose', e);
     }
   };
-
-  const [pendingDeleteSchedule, setPendingDeleteSchedule] = useState<Schedule | null>(null);
 
   const confirmDeleteSchedule = async () => {
     if (!pendingDeleteSchedule) return;
@@ -163,22 +103,22 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
     setPendingDeleteSchedule(null);
     try {
       const res = await callApi('delete_schedule', target.schedule_id);
-      if (res.success) {
-        fetchSchedulesAndInventory();
+      if (res && res.success) {
+        fetchSchedulesAndMeds();
         if (onDataChange) onDataChange();
       }
-    } catch (err) {
-      console.error('Delete schedule error', err);
+    } catch (e) {
+      console.error('Delete schedule error', e);
     }
   };
 
-  const handleCreateIntakeSchedule = async (e: React.FormEvent) => {
+  const handleCreateSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user?.user_id) return;
     setFormMsg({ text: '', isError: false });
 
     if (!selectedMedId) {
-      setFormMsg({ text: 'Please select a medication from stock.', isError: true });
+      setFormMsg({ text: 'Please select a medication.', isError: true });
       return;
     }
 
@@ -188,621 +128,543 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
         'create_intake_schedule',
         user.user_id,
         selectedMedId,
-        selectedDate,
+        startDate,
         selectedTime,
         'SCHEDULED',
         parseInt(dosePerIntake, 10) || 1,
         doseUnit || 'tablet',
-        frequency || 'Every day',
-        startDate || selectedDate,
-        endDate || null,
+        frequency || 'Daily',
+        startDate,
+        endDate ? endDate : null,
         instructions || ''
       );
 
       if (res.success) {
-        setFormMsg({ text: res.message || 'Intake schedule created successfully!', isError: false });
-        fetchSchedulesAndInventory();
+        setFormMsg({ text: 'Schedule created successfully!', isError: false });
+        fetchSchedulesAndMeds();
         if (onDataChange) onDataChange();
         setTimeout(() => {
-          setShowModal(false);
+          setShowCreateModal(false);
+          setEndDate('');
+          setInstructions('');
           setFormMsg({ text: '', isError: false });
-        }, 1200);
+        }, 800);
       } else {
         setFormMsg({ text: res.message || 'Failed to create schedule.', isError: true });
       }
-    } catch (err) {
-      setFormMsg({ text: 'Error saving intake schedule.', isError: true });
+    } catch (e) {
+      setFormMsg({ text: 'Error saving schedule.', isError: true });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const setQuickTime = (timeVal: string) => {
-    setSelectedTime(timeVal);
+  const monthYearLabel = currentDate.toLocaleDateString('en-US', {
+    month: 'long',
+    year: 'numeric'
+  });
+
+  const prevMonth = () => {
+    const next = new Date(currentDate);
+    next.setMonth(next.getMonth() - 1);
+    setCurrentDate(next);
   };
 
-  const timePresets = [
-    { label: 'Morning', value: '08:00' },
-    { label: 'Noon', value: '12:00' },
-    { label: 'Evening', value: '18:00' },
-    { label: 'Night', value: '21:00' }
-  ];
+  const nextMonth = () => {
+    const next = new Date(currentDate);
+    next.setMonth(next.getMonth() + 1);
+    setCurrentDate(next);
+  };
 
-  const todayStr = new Date().toISOString().split('T')[0];
-
-  const filteredSchedules = schedules
-    .filter((sch) => {
-      if (searchTerm) {
-        const search = searchTerm.toLowerCase();
-        const formattedTime = formatTime(sch.time_value).toLowerCase();
-        const rawTime = (sch.time_value || '').toLowerCase();
-        const medName = (sch.med_name || '').toLowerCase();
-        const strength = (sch.strength || '').toLowerCase();
-        const freq = (sch.frequency || '').toLowerCase();
-        const inst = (sch.instructions || '').toLowerCase();
-
-        const matchesSearch =
-          medName.includes(search) ||
-          strength.includes(search) ||
-          rawTime.includes(search) ||
-          formattedTime.includes(search) ||
-          freq.includes(search) ||
-          inst.includes(search);
-
-        if (!matchesSearch) return false;
-      }
-
-      if (dateFilter === 'today') {
-        const schDate = sch.schedule_date;
-        const sDate = sch.start_date;
-        const eDate = sch.end_date;
-
-        const isTodaySpecific = schDate === todayStr;
-        const isRangeCurrent =
-          (!sDate || sDate <= todayStr) && (!eDate || eDate >= todayStr);
-
-        if (!isTodaySpecific && !isRangeCurrent && schDate && schDate !== todayStr) {
-          return false;
-        }
-      } else if (dateFilter === 'upcoming') {
-        const schDate = sch.schedule_date;
-        const sDate = sch.start_date;
-        const isFuture = (schDate && schDate > todayStr) || (sDate && sDate > todayStr);
-        if (!isFuture) return false;
-      }
-
-      if (medFilter !== 'all') {
-        if (sch.med_name !== medFilter && sch.med_id?.toString() !== medFilter) {
-          return false;
-        }
-      }
-
-      if (statusFilter === 'active') {
-        const status = (sch.status || 'ACTIVE').toUpperCase();
-        if (status === 'PAUSED' || status === 'INACTIVE') return false;
-      } else if (statusFilter === 'paused') {
-        const status = (sch.status || '').toUpperCase();
-        if (status !== 'PAUSED' && status !== 'INACTIVE') return false;
-      }
-
-      return true;
-    })
-    .sort((a, b) => {
-      if (sortBy === 'time') {
-        return timeToMinutes(a.time_value) - timeToMinutes(b.time_value);
-      } else if (sortBy === 'name') {
-        return (a.med_name || '').localeCompare(b.med_name || '');
-      }
-      return 0;
-    });
-
-  const selectedMedObj = medications.find((m) => m.med_id.toString() === selectedMedId.toString());
+  // Filter schedules based on search term
+  const filteredSchedules = schedules.filter((sch) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return (
+      (sch.med_name || '').toLowerCase().includes(term) ||
+      (sch.strength || sch.dosage || '').toLowerCase().includes(term) ||
+      (sch.time_value || '').toLowerCase().includes(term) ||
+      (sch.frequency || '').toLowerCase().includes(term) ||
+      (sch.instructions || '').toLowerCase().includes(term)
+    );
+  });
 
   return (
-    <div className="p-5 flex flex-col h-full overflow-hidden space-y-4 relative transition-colors duration-150">
-
-      {/* Desktop Toolbar Container */}
-      <div className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-4 flex flex-col gap-3 shrink-0 shadow-sm">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[200px] max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-2.5" />
+    <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
+      {/* 1. STICKY TOP BAR: Search Bar + Buttons (Always Fixed at Top, Never Scrolls) */}
+      <div className="shrink-0 pb-4 mb-4 border-b border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9] dark:bg-[#0c1722] z-10">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
+          {/* Prominent Search Bar */}
+          <div className="relative flex-1 max-w-md">
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B9DA8]" />
             <input
               type="text"
-              placeholder="Search medication or time..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+              placeholder="Search schedules by medication, time, dosage..."
+              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8B9DA8] hover:text-[#1E2837] dark:hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
-
-            {/* View Mode Switcher */}
-            <div className="flex items-center bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-1 rounded-xl">
+          {/* Month Selector & Create Schedule Button */}
+          <div className="flex items-center gap-3 self-end sm:self-auto">
+            <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
               <button
                 type="button"
-                onClick={() => setViewMode('list')}
-                title="List View"
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold ${
-                  viewMode === 'list'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                onClick={prevMonth}
+                className="p-1 hover:text-[#2E7D7E] dark:hover:text-[#2dd4bf] transition-colors"
+                title="Previous Month"
               >
-                <LayoutList className="w-4 h-4" />
-                <span>List View</span>
+                <ChevronLeft className="w-3.5 h-3.5" />
               </button>
-
-              <div className="w-[1px] h-4 bg-slate-300 dark:bg-[#262f46] mx-1" />
-
+              <span className="min-w-[120px] text-center">{monthYearLabel}</span>
               <button
                 type="button"
-                onClick={() => setViewMode('grid')}
-                title="Grid View"
-                className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold ${
-                  viewMode === 'grid'
-                    ? 'bg-purple-600 text-white shadow-sm'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
+                onClick={nextMonth}
+                className="p-1 hover:text-[#2E7D7E] dark:hover:text-[#2dd4bf] transition-colors"
+                title="Next Month"
               >
-                <LayoutGrid className="w-4 h-4" />
-                <span>Grid View</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Primary Action Button */}
             <button
+              type="button"
               onClick={() => {
-                if (medications.length === 0) {
-                  alert('Please register at least one medication in Medication Stock inventory first.');
-                  return;
-                }
-                setShowModal(true);
+                setFormMsg({ text: '', isError: false });
+                setShowCreateModal(true);
               }}
-              className="bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs px-4 py-2 rounded-xl flex items-center gap-2 transition-all shadow-sm shrink-0"
+              className="py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 shrink-0"
             >
               <Plus className="w-4 h-4" />
-              <span>Add Intake Schedule</span>
+              <span>Create Schedule</span>
             </button>
           </div>
         </div>
-
-        {/* Filter & Sort Controls Row */}
-        <div className="flex items-center gap-2.5 flex-wrap pt-2 border-t border-slate-100 dark:border-[#1e2436]">
-
-          {/* Date Filter */}
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 font-semibold text-xs px-3 py-1.5 rounded-xl focus:outline-none focus:border-purple-500 cursor-pointer"
-          >
-            <option value="today">Today</option>
-            <option value="upcoming">Upcoming</option>
-            <option value="all">All Schedules</option>
-          </select>
-
-          {/* Medicine Filter */}
-          <select
-            value={medFilter}
-            onChange={(e) => setMedFilter(e.target.value)}
-            className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 font-semibold text-xs px-3 py-1.5 rounded-xl focus:outline-none focus:border-purple-500 cursor-pointer"
-          >
-            <option value="all">All Medicines</option>
-            {Array.from(new Set(schedules.map((s) => s.med_name))).map((medName) => (
-              <option key={medName} value={medName}>
-                {medName}
-              </option>
-            ))}
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 font-semibold text-xs px-3 py-1.5 rounded-xl focus:outline-none focus:border-purple-500 cursor-pointer"
-          >
-            <option value="active">Active</option>
-            <option value="paused">Paused</option>
-            <option value="all">All Statuses</option>
-          </select>
-
-          {/* Sort Filter */}
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 font-semibold text-xs px-3 py-1.5 rounded-xl focus:outline-none focus:border-purple-500 cursor-pointer"
-          >
-            <option value="time">Sort: Time</option>
-            <option value="name">Sort: Medication Name</option>
-          </select>
-
-        </div>
       </div>
 
-      {/* Action Notification Toast */}
-      {message.text && (
-        <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 shadow-sm animate-fadeIn shrink-0">
-          <CheckCircle2 className="w-4 h-4 shrink-0" />
-          <span className="font-semibold">{message.text}</span>
-        </div>
-      )}
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto pr-1">
-        {loading ? (
-          <div className="text-center text-slate-500 dark:text-slate-400 py-20 text-xs">Loading intake schedules...</div>
-        ) : filteredSchedules.length === 0 ? (
-          <div className="text-center text-slate-500 dark:text-slate-400 py-24 text-xs">
-            <p className="font-medium text-sm text-slate-700 dark:text-slate-300 mb-1">No intake schedules set yet.</p>
-            <p className="text-slate-500 dark:text-slate-400">Click "Add Intake Schedule" to choose a medicine from stock and set your dose reminder time.</p>
-          </div>
-        ) : viewMode === 'grid' ? (
-
-          /* Grid View Layout */
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredSchedules.map((sch) => {
-              const stockAmt = sch.stock || 0;
-              const isOut = stockAmt <= 0;
-              const doseAmt = sch.dose_per_intake || 1;
-              const unitStr = sch.dose_unit || 'tablet';
+      {/* 2. MAIN LAYOUT: Left Column Scrolls ONLY, Right Picture Panel is FIXED */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-5 items-start overflow-hidden">
+        {/* LEFT COLUMN: Scrollable Schedule Objects List */}
+        <div className="md:col-span-7 xl:col-span-7 2xl:col-span-8 h-full overflow-y-auto custom-scrollbar pr-1.5 space-y-3.5">
+          {filteredSchedules.length === 0 ? (
+            <div className="py-12 text-center text-[#8B9DA8] dark:text-[#859ba8] bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-8">
+              <Calendar className="w-8 h-8 mx-auto text-[#2E7D7E]/50 mb-2" />
+              <p className="text-xs font-semibold text-[#1E2837] dark:text-white">
+                {searchTerm ? 'No matching schedules found' : 'No active schedules created yet'}
+              </p>
+              <p className="text-xs text-[#8B9DA8] mt-1">
+                {searchTerm ? 'Try a different search query.' : 'Click "Create Schedule" to assign times to your medications.'}
+              </p>
+            </div>
+          ) : (
+            filteredSchedules.map((sch) => {
+              const startInfo = formatDateDisplay(sch.start_date || sch.schedule_date);
+              const endInfo = formatDateDisplay(sch.end_date);
+              const matchingMed = medications.find((m) => m.med_id === sch.med_id);
+              const stockRemaining = sch.stock ?? matchingMed?.stock ?? 0;
+              const stockUnit = sch.stock_unit || matchingMed?.stock_unit || 'tablets';
 
               return (
                 <div
                   key={sch.schedule_id}
-                  className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] hover:border-purple-300 dark:hover:border-purple-500/40 rounded-2xl p-4 flex flex-col justify-between space-y-4 transition-all shadow-sm"
+                  className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row items-stretch justify-between gap-4"
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-                        <Clock className="w-5 h-5" />
-                      </div>
-                      <div className="min-w-0">
-                        <h4 className="font-semibold text-slate-900 dark:text-white text-sm truncate">{sch.med_name}</h4>
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{sch.strength}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => setPendingDeleteSchedule(sch)}
-                      className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors shrink-0"
-                      title="Delete Schedule"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                  {/* Left Side: Start Date Panel */}
+                  <div className="w-full lg:w-32 xl:w-36 shrink-0 flex flex-col justify-center pb-2 lg:pb-0 border-b lg:border-b-0 lg:border-r border-[#E3E8EE] dark:border-[#1c3345] pr-0 lg:pr-3">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#2E7D7E] dark:text-[#2dd4bf] block mb-0.5">
+                      Start Date
+                    </span>
+                    <h3 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white leading-tight">
+                      {startInfo.dateFormatted}
+                    </h3>
+                    <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-0.5">
+                      {startInfo.dayName}
+                    </p>
                   </div>
 
-                  <div className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl p-3 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Scheduled Time:</span>
-                      <span className="font-bold text-purple-600 dark:text-purple-400 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5" />
-                        {formatTime(sch.time_value)}
-                      </span>
+                  {/* Middle: Expanded Medication Details */}
+                  <div className="flex-1 min-w-0 px-0 lg:px-2 flex flex-col justify-between space-y-2.5">
+                    {/* Header Row: Drug Name, Dosage & Scheduled Time */}
+                    <div className="flex items-start justify-between gap-2.5 flex-wrap">
+                      <div className="flex items-center gap-2.5">
+                        {sch.image_path || matchingMed?.image_path ? (
+                          <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 shadow-xs bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center">
+                            <img src={sch.image_path || matchingMed?.image_path || ''} alt={sch.med_name} className="w-full h-full object-cover rounded-xl" style={{ width: '40px', height: '40px' }} />
+                          </div>
+                        ) : (
+                          <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center shrink-0 shadow-xs">
+                            <Pill className="w-5 h-5 -rotate-45" />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white">
+                              {sch.med_name}
+                            </h4>
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-[#2E7D7E] border border-teal-200 dark:bg-teal-500/15 dark:text-[#2dd4bf] dark:border-teal-500/30">
+                              {sch.strength || sch.dosage || 'Standard'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-[#8B9DA8] dark:text-[#859ba8] font-medium block mt-0.5">
+                            Prescription ID #{sch.med_id}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Scheduled Time Pill */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
+                        <Clock className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                        <span>{formatTimeWithAmPm(sch.time_value)}</span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Dose per Intake:</span>
-                      <span className="font-bold text-slate-900 dark:text-white">
-                        {doseAmt} {unitStr}
-                      </span>
+                    {/* Detailed Spec Chips */}
+                    <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pt-0.5">
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F3F6F9]/80 dark:bg-[#172838]/60 text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
+                        <Pill className="w-3 h-3 text-[#2E7D7E]" />
+                        <span>Take: <strong className="font-semibold">{sch.dose_per_intake || 1} {sch.dose_unit || 'tablet'}</strong></span>
+                      </div>
+
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F3F6F9]/80 dark:bg-[#172838]/60 text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
+                        <Repeat className="w-3 h-3 text-[#2E7D7E]" />
+                        <span>Repeat: <strong className="font-semibold">{sch.frequency || 'Daily'}</strong></span>
+                      </div>
+
+                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F3F6F9]/80 dark:bg-[#172838]/60 text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
+                        <Package className="w-3 h-3 text-[#2E7D7E]" />
+                        <span>Stock: <strong className="font-semibold">{stockRemaining} {stockUnit}</strong></span>
+                      </div>
                     </div>
 
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Frequency:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {sch.frequency || 'Every day'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">Start Date:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {sch.start_date || 'N/A'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-500 dark:text-slate-400">End Date:</span>
-                      <span className="font-medium text-slate-700 dark:text-slate-300">
-                        {sch.end_date || 'Continuous'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-200 dark:border-[#222838]">
-                      <span className="text-slate-500 dark:text-slate-400">Stock Available:</span>
-                      <span className={`font-bold ${isOut ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                        {stockAmt} {sch.stock_unit || 'tablets'}
-                      </span>
-                    </div>
+                    {/* Clinical Instructions / Notes */}
+                    {sch.instructions && (
+                      <div className="p-2 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/40 flex items-start gap-1.5 text-[11px] text-[#2E7D7E] dark:text-[#2dd4bf]">
+                        <Info className="w-3 h-3 shrink-0 mt-0.5" />
+                        <span className="leading-snug truncate">
+                          <strong>Note:</strong> {sch.instructions}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  <button
-                    onClick={() => handleTakeDose(sch)}
-                    disabled={isOut}
-                    className={`w-full py-2.5 rounded-xl font-semibold text-xs transition-all flex items-center justify-center gap-2 shadow-sm ${
-                      isOut
-                        ? 'bg-slate-100 text-slate-400 dark:bg-[#1c2234] dark:text-slate-600 cursor-not-allowed'
-                        : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                    }`}
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>{isOut ? 'Out of Stock (Refill Needed)' : 'Take Dose'}</span>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-
-          /* List View Layout */
-          <div className="space-y-2">
-            {filteredSchedules.map((sch) => {
-              const stockAmt = sch.stock || 0;
-              const isOut = stockAmt <= 0;
-              const doseAmt = sch.dose_per_intake || 1;
-              const unitStr = sch.dose_unit || 'tablet';
-
-              return (
-                <div
-                  key={sch.schedule_id}
-                  className="bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] hover:border-purple-300 dark:hover:border-purple-500/40 rounded-xl p-3 flex items-center justify-between transition-all"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
-                      <Clock className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <h4 className="font-semibold text-slate-900 dark:text-white text-xs truncate">{sch.med_name} ({sch.strength})</h4>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">
-                        Time: <span className="font-bold text-purple-600 dark:text-purple-400">{formatTime(sch.time_value)}</span> &bull; Dose: {doseAmt} {unitStr} &bull; Freq: {sch.frequency || 'Every day'} &bull; Stock: <span className={isOut ? 'text-rose-600 font-bold' : 'text-emerald-600 font-bold'}>{stockAmt} {sch.stock_unit || 'tablets'}</span>
+                  {/* Right Side: End Date & Actions Panel */}
+                  <div className="w-full lg:w-32 xl:w-36 shrink-0 flex flex-col justify-between pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-[#E3E8EE] dark:border-[#1c3345] pl-0 lg:pl-3">
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#8B9DA8] dark:text-[#859ba8] block mb-0.5 text-left lg:text-right">
+                        End Date
+                      </span>
+                      <h3 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white leading-tight text-left lg:text-right">
+                        {endInfo.dateFormatted}
+                      </h3>
+                      <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-0.5 text-left lg:text-right">
+                        {endInfo.dayName}
                       </p>
                     </div>
-                  </div>
 
-                  <div className="flex items-center gap-3 shrink-0">
-                    <button
-                      onClick={() => handleTakeDose(sch)}
-                      disabled={isOut}
-                      className={`px-4 py-1.5 rounded-lg font-semibold text-xs transition-all flex items-center gap-1.5 ${
-                        isOut
-                          ? 'bg-slate-100 text-slate-400 dark:bg-[#1c2234] dark:text-slate-600 cursor-not-allowed'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
-                      }`}
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>{isOut ? 'Out of Stock' : 'Take Dose'}</span>
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="flex items-center justify-end gap-1.5 pt-2">
+                      <button
+                        type="button"
+                        onClick={() => handleTakeDose(sch)}
+                        className="px-2.5 py-1.5 rounded-xl bg-[#2E7D7E] hover:bg-[#26696a] text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all"
+                        title="Mark as Taken"
+                      >
+                        <Check className="w-3 h-3 stroke-[2.5]" />
+                        <span>Take Dose</span>
+                      </button>
 
-                    <button
-                      onClick={() => setPendingDeleteSchedule(sch)}
-                      className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
-                      title="Delete Schedule"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      <button
+                        type="button"
+                        onClick={() => setPendingDeleteSchedule(sch)}
+                        title="Delete Schedule"
+                        className="p-1 text-[#8B9DA8] hover:text-rose-500 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               );
-            })}
-          </div>
-        )}
-      </div>
+            })
+          )}
+        </div>
 
-      {/* Add Intake Schedule Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn">
-          <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-6 shadow-2xl space-y-5 text-slate-900 dark:text-white">
-
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-[#1e2436] pb-3.5">
-              <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-50 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <Clock className="w-4 h-4" />
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">Create Medication Schedule</h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400">Select a drug from inventory and set its intake reminder schedule.</p>
-                </div>
+        {/* RIGHT COLUMN: FIXED PICTURE & GUIDELINES (Responsive Desktop Panel) */}
+        <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col space-y-4 shrink-0 h-full overflow-y-auto custom-scrollbar pr-0.5">
+          {/* Card 1: Medical Visual & Better Health Quote Card (Fixed) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm flex flex-col items-center text-center shrink-0">
+            <div className="w-full h-48 sm:h-56 md:h-60 lg:h-64 xl:h-72 2xl:h-80 rounded-2xl overflow-hidden relative mb-3 sm:mb-4 shadow-sm">
+              <img
+                src="/assets/side_card_art.jpg"
+                alt="Medication scheduler photography"
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/15 to-transparent flex items-end p-3.5 sm:p-4">
+                <span className="text-white text-[11px] font-semibold drop-shadow-md">
+                  Prescription Care & Routine
+                </span>
               </div>
-              <button
-                onClick={() => setShowModal(false)}
-                className="w-7 h-7 rounded-lg hover:bg-slate-100 dark:hover:bg-[#1c2234] text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center justify-center transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
             </div>
 
-            {formMsg.text && (
-              <div className={`p-3 rounded-xl text-xs font-medium flex items-center gap-2 ${
-                formMsg.isError ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:border-rose-500/30 dark:text-rose-300' : 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:border-emerald-500/30 dark:text-emerald-300'
-              }`}>
-                {formMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
-                <span>{formMsg.text}</span>
-              </div>
-            )}
+            <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
+              Better Health, Brighter Future ♡
+            </h3>
+            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-1 leading-relaxed">
+              Taking your doses at the same time each day builds a strong therapeutic routine.
+            </p>
+          </div>
 
-            <form onSubmit={handleCreateIntakeSchedule} className="space-y-4">
+          {/* Card 2: Hydration & Medication Tip Card (Fixed) */}
+          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 shadow-sm space-y-2.5 shrink-0">
+            <div className="flex items-center gap-2 pb-2 border-b border-[#E3E8EE] dark:border-[#1c3345]">
+              <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
+                <Droplets className="w-3.5 h-3.5" />
+              </div>
+              <h4 className="text-xs font-bold text-[#1E2837] dark:text-white">
+                Intake Guidelines
+              </h4>
+            </div>
+
+            <ul className="text-[11px] text-[#64748B] dark:text-[#859ba8] space-y-2 leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
+                <span>Drink a full glass of water with each scheduled tablet or capsule.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
+                <span>Never take double doses to make up for a missed intake.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7D7E] dark:bg-[#2dd4bf] mt-1.5 shrink-0" />
+                <span>Check stock levels frequently to request refills in advance.</span>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* CREATE SCHEDULE MODAL */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="w-full max-w-[780px] lg:max-w-[880px] xl:max-w-[960px] my-auto max-h-[92vh] bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12 animate-fadeIn">
+            {/* Form Side (7 cols) */}
+            <form onSubmit={handleCreateSchedule} className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Select Drug from Inventory</label>
-                <select
-                  value={selectedMedId}
-                  onChange={(e) => setSelectedMedId(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                >
-                  {medications.map((m) => (
-                    <option key={m.med_id} value={m.med_id}>
-                      {m.name} ({m.strength || m.dosage}) - Stock: {m.stock} {m.stock_unit || 'tablets'}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedMedObj && (
-                <div className="bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] p-3 rounded-xl text-xs flex items-center justify-between text-slate-600 dark:text-slate-400">
-                  <span>Selected Strength: <strong className="text-slate-900 dark:text-white">{selectedMedObj.strength || selectedMedObj.dosage}</strong></span>
-                  <span>Available Stock: <strong className="text-emerald-600 dark:text-emerald-400">{selectedMedObj.stock} {selectedMedObj.stock_unit || 'tablets'}</strong></span>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Dose per Intake</label>
-                  <input
-                    type="number"
-                    min="1"
-                    required
-                    value={dosePerIntake}
-                    onChange={(e) => setDosePerIntake(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Dose Unit</label>
-                  <select
-                    value={doseUnit}
-                    onChange={(e) => setDoseUnit(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
+                <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345] mb-4">
+                  <h3 className="text-base font-bold text-[#1E2837] dark:text-white">
+                    Create Schedule
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="p-1 rounded-lg text-[#8B9DA8] hover:text-[#1E2837]"
                   >
-                    <option value="tablet">tablet</option>
-                    <option value="capsule">capsule</option>
-                    <option value="dose">dose</option>
-                    <option value="ml">ml</option>
-                    <option value="pill">pill</option>
-                  </select>
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Scheduled Time</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    required
-                    value={selectedTime}
-                    onChange={(e) => setSelectedTime(e.target.value)}
-                    className="flex-1 bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  />
-                  <div className="flex gap-1">
-                    {timePresets.map((tp) => (
-                      <button
-                        key={tp.value}
-                        type="button"
-                        onClick={() => setQuickTime(tp.value)}
-                        className={`px-2 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${
-                          selectedTime === tp.value
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-slate-100 text-slate-600 dark:bg-[#1c2234] dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                        }`}
+                {formMsg.text && (
+                  <div className={`p-2.5 rounded-xl mb-3 text-xs flex items-center gap-2 ${formMsg.isError ? 'bg-rose-50 text-rose-700' : 'bg-emerald-50 text-emerald-700'}`}>
+                    {formMsg.isError ? <AlertCircle className="w-4 h-4 shrink-0" /> : <Check className="w-4 h-4 shrink-0" />}
+                    <span>{formMsg.text}</span>
+                  </div>
+                )}
+
+                <div className="space-y-3.5">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                      Medication *
+                    </label>
+                    <select
+                      value={selectedMedId}
+                      onChange={(e) => setSelectedMedId(e.target.value)}
+                      className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                    >
+                      {medications.map((m) => (
+                        <option key={m.med_id} value={m.med_id.toString()}>
+                          {m.name} ({m.dosage || m.strength || 'Standard Dose'}) - {m.stock} {m.stock_unit || 'in stock'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Start Date on Left, End Date on Right */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                        Start Date *
+                      </label>
+                      <input
+                        type="date"
+                        required
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                        End Date (optional)
+                      </label>
+                      <input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8]">
+                          Select Time *
+                        </label>
+                        <span className="text-[10px] font-bold text-[#2E7D7E] dark:text-[#2dd4bf] bg-teal-50 dark:bg-teal-500/15 px-1.5 py-0.5 rounded border border-teal-200 dark:border-teal-500/30">
+                          {formatTimeWithAmPm(selectedTime)}
+                        </span>
+                      </div>
+                      <input
+                        type="time"
+                        required
+                        value={selectedTime}
+                        onChange={(e) => setSelectedTime(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                        Repeat *
+                      </label>
+                      <select
+                        value={frequency}
+                        onChange={(e) => setFrequency(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
                       >
-                        {tp.label}
-                      </button>
-                    ))}
+                        <option value="Daily">Daily</option>
+                        <option value="Every 8 Hours">Every 8 Hours</option>
+                        <option value="Every 12 Hours">Every 12 Hours</option>
+                        <option value="Weekly">Weekly</option>
+                        <option value="As Needed">As Needed</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                        Dose per Intake
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={dosePerIntake}
+                        onChange={(e) => setDosePerIntake(e.target.value)}
+                        className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                        Unit
+                      </label>
+                      <input
+                        type="text"
+                        value={doseUnit}
+                        onChange={(e) => setDoseUnit(e.target.value)}
+                        placeholder="tablet / capsule"
+                        className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
+                      Notes (optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={instructions}
+                      onChange={(e) => setInstructions(e.target.value)}
+                      placeholder="e.g. Take with food"
+                      className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E]"
+                    />
                   </div>
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Frequency</label>
-                <select
-                  value={frequency}
-                  onChange={(e) => setFrequency(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                >
-                  <option value="Every day">Every day</option>
-                  <option value="Twice a day">Twice a day</option>
-                  <option value="Every 8 hours">Every 8 hours</option>
-                  <option value="As needed">As needed (PRN)</option>
-                  <option value="Weekly">Weekly</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Start Date</label>
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">End Date (Optional)</label>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Special Instructions (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Take with food or after breakfast"
-                  value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
-                  className="w-full bg-slate-50 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] rounded-xl px-3.5 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-purple-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-[#1e2436]">
+              {/* Action Buttons */}
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-[#E3E8EE] dark:border-[#1c3345]">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[#262f46] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs font-semibold transition-colors"
+                  onClick={() => setShowCreateModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-[#64748B] hover:bg-[#F3F6F9]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-[#2E7D7E] hover:bg-[#26696a] text-white shadow-sm"
                 >
-                  <span>{submitting ? 'Saving...' : 'Save Schedule'}</span>
+                  {submitting ? 'Saving...' : 'Save Schedule'}
                 </button>
               </div>
             </form>
+
+            {/* Artwork Side (5 cols) */}
+            <div className="hidden md:block md:col-span-5 relative min-h-[380px] lg:min-h-[460px] bg-gradient-to-br from-[#E2F0EF] to-[#D5EAE9] dark:from-[#112733] dark:to-[#0a1822] overflow-hidden">
+              <img
+                src="/assets/side_card_art.jpg"
+                alt="Health care illustration"
+                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
+              />
+              <div className="absolute top-6 right-6 max-w-[160px] text-right">
+                <p className="text-xs font-medium text-[#2E7D7E] dark:text-[#2dd4bf] italic font-serif leading-snug">
+                  Better Health, Brighter Future ♡
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Confirmation Modal for Deleting Medication Schedule */}
+      {/* Delete Schedule Confirmation */}
       {pendingDeleteSchedule && (
-        <div
-          className="fixed inset-0 bg-slate-900/40 dark:bg-[#090b12]/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fadeIn"
-          onClick={() => setPendingDeleteSchedule(null)}
-        >
-          <div
-            className="w-full max-w-md bg-white dark:bg-[#151926] border border-slate-200 dark:border-[#222838] rounded-2xl p-6 shadow-xl space-y-4 text-slate-900 dark:text-white"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Delete Medication Schedule?</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                Are you sure you want to delete the schedule for <strong className="text-slate-900 dark:text-white">{pendingDeleteSchedule.med_name}</strong> scheduled at <strong className="text-purple-600 dark:text-purple-400">{formatTime(pendingDeleteSchedule.time_value)}</strong>? This action cannot be undone.
-              </p>
-            </div>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-100 dark:border-[#1e2436]">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-2xl space-y-4">
+            <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">Delete Schedule?</h3>
+            <p className="text-xs text-[#8B9DA8]">
+              Remove schedule for <span className="font-bold text-[#1E2837] dark:text-white">{pendingDeleteSchedule.med_name}</span> at <strong className="text-[#1E2837] dark:text-white">{formatTimeWithAmPm(pendingDeleteSchedule.time_value)}</strong>?
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
               <button
                 type="button"
                 onClick={() => setPendingDeleteSchedule(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-slate-100 dark:bg-[#1c2234] border border-slate-200 dark:border-[#262f46] text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-[#262f46] transition-colors"
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-[#64748B]"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={confirmDeleteSchedule}
-                className="px-4 py-2 text-xs font-semibold rounded-xl bg-rose-600 hover:bg-rose-500 text-white shadow-sm transition-colors"
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm"
               >
-                Delete Schedule
+                Delete
               </button>
             </div>
           </div>

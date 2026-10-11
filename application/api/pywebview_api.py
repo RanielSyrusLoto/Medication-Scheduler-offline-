@@ -510,7 +510,7 @@ class PythonAPI:
             from services.updater import get_current_version
             return {"success": True, "version": get_current_version()}
         except Exception as e:
-            return {"success": False, "version": "1.0.5", "message": str(e)}
+            return {"success": False, "version": "1.1.3", "message": str(e)}
 
     def check_for_updates(self):
         """Check for software updates from remote manifest."""
