@@ -101,7 +101,10 @@ class DatabaseManager:
             ("stock_unit", "TEXT DEFAULT 'tablets'"),
             ("start_date", "TEXT DEFAULT NULL"),
             ("end_date", "TEXT DEFAULT NULL"),
-            ("expiration_date", "TEXT DEFAULT NULL")
+            ("expiration_date", "TEXT DEFAULT NULL"),
+            ("last_restock", "TEXT DEFAULT NULL"),
+            ("batch_no", "TEXT DEFAULT NULL"),
+            ("initial_stock", "INTEGER DEFAULT 30")
         ]:
             try:
                 cursor.execute(f"ALTER TABLE medications ADD COLUMN {col_name} {col_type}")

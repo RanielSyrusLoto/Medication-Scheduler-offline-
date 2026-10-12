@@ -17,6 +17,9 @@ export interface Medication {
   is_low_stock?: boolean;
   image_path?: string | null;
   expiration_date?: string | null;
+  last_restock?: string | null;
+  batch_no?: string | null;
+  initial_stock?: number | null;
 }
 
 export interface Schedule {

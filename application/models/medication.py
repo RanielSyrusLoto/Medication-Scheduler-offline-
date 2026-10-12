@@ -1,7 +1,8 @@
+from datetime import datetime
 from database.db_manager import DatabaseManager
 
 class Medication:
-    def __init__(self, med_id, user_id, name, dosage, stock, refill_threshold, image_path=None, strength='', dosage_form='Tablet', stock_unit='tablets', start_date=None, end_date=None, expiration_date=None):
+    def __init__(self, med_id, user_id, name, dosage, stock, refill_threshold, image_path=None, strength='', dosage_form='Tablet', stock_unit='tablets', start_date=None, end_date=None, expiration_date=None, last_restock=None, batch_no=None, initial_stock=None):
         self.med_id = med_id
         self.user_id = user_id
         self.name = name
@@ -15,6 +16,9 @@ class Medication:
         self.start_date = start_date
         self.end_date = end_date
         self.expiration_date = expiration_date
+        self.last_restock = last_restock
+        self.batch_no = batch_no
+        self.initial_stock = initial_stock or max(stock, 30)
 
     def is_low_stock(self):
         return self.stock <= self.refill_threshold
@@ -24,7 +28,7 @@ class InventoryManager:
         self.db = DatabaseManager()
 
     def get_user_medications(self, user_id=None):
-        query = "SELECT id, user_id, name, dosage, stock, refill_threshold, image_path, COALESCE(NULLIF(strength, ''), dosage), COALESCE(NULLIF(dosage_form, ''), 'Tablet'), COALESCE(NULLIF(stock_unit, ''), 'tablets'), start_date, end_date, expiration_date FROM medications"
+        query = "SELECT id, user_id, name, dosage, stock, refill_threshold, image_path, COALESCE(NULLIF(strength, ''), dosage), COALESCE(NULLIF(dosage_form, ''), 'Tablet'), COALESCE(NULLIF(stock_unit, ''), 'tablets'), start_date, end_date, expiration_date, last_restock, batch_no, initial_stock FROM medications"
         if user_id is not None:
             rows = self.db.fetch_all(query + " WHERE user_id = ?", (user_id,))
         else:
@@ -34,16 +38,20 @@ class InventoryManager:
             medications.append(Medication(*row))
         return medications
 
-    def add_medication(self, user_id, name, dosage, stock, refill_threshold, image_path=None, strength=None, dosage_form='Tablet', stock_unit='tablets', start_date=None, end_date=None, expiration_date=None):
+    def add_medication(self, user_id, name, dosage, stock, refill_threshold, image_path=None, strength=None, dosage_form='Tablet', stock_unit='tablets', start_date=None, end_date=None, expiration_date=None, last_restock=None, batch_no=None):
         clean_strength = strength.strip() if strength else dosage.strip()
         clean_form = dosage_form.strip() if dosage_form else 'Tablet'
         clean_unit = stock_unit.strip() if stock_unit else 'tablets'
         clean_start = start_date.strip() if start_date else None
         clean_end = end_date.strip() if end_date else None
         clean_exp = expiration_date.strip() if expiration_date else None
+        clean_restock = last_restock.strip() if last_restock else datetime.now().strftime('%b %d, %Y')
+        abbr = ''.join([c for c in name if c.isalnum()][:3]).upper() or 'MED'
+        clean_batch = batch_no.strip() if batch_no else f"{abbr}-2026-001"
+        init_stk = int(stock) if stock else 30
         return self.db.execute_query(
-            "INSERT INTO medications (user_id, name, dosage, stock, refill_threshold, image_path, strength, dosage_form, stock_unit, start_date, end_date, expiration_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (user_id, name, dosage, stock, refill_threshold, image_path, clean_strength, clean_form, clean_unit, clean_start, clean_end, clean_exp)
+            "INSERT INTO medications (user_id, name, dosage, stock, refill_threshold, image_path, strength, dosage_form, stock_unit, start_date, end_date, expiration_date, last_restock, batch_no, initial_stock) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (user_id, name, dosage, stock, refill_threshold, image_path, clean_strength, clean_form, clean_unit, clean_start, clean_end, clean_exp, clean_restock, clean_batch, init_stk)
         )
 
     def update_medication(self, med_id, name, dosage, stock, refill_threshold, image_path=None, strength=None, dosage_form='Tablet', stock_unit='tablets', start_date=None, end_date=None, expiration_date=None):
@@ -65,7 +73,8 @@ class InventoryManager:
     def add_stock(self, med_id, amount):
         amt = int(amount) if amount else 0
         if amt > 0:
-            self.db.execute_query("UPDATE medications SET stock = stock + ? WHERE id = ?", (amt, med_id))
+            now_str = datetime.now().strftime('%b %d, %Y')
+            self.db.execute_query("UPDATE medications SET stock = stock + ?, last_restock = ? WHERE id = ?", (amt, now_str, med_id))
 
     def delete_medication(self, med_id):
         row = self.db.fetch_one("SELECT name FROM medications WHERE id = ?", (med_id,))
