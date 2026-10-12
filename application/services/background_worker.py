@@ -378,6 +378,7 @@ class NotificationWorker:
                         self.last_alert_timestamp = now_ts
                         title = "Medication Reminder"
                         if len(new_offline_due) == 1:
+                            single_med = new_offline_due[0]
                             time_str = single_med.get('time_value')
                             time_fmt = _format_time_am_pm(time_str)
                             time_text = f" scheduled at {time_fmt}" if time_fmt else ""

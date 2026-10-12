@@ -21,6 +21,39 @@ class Schedule:
         self.stock_unit = stock_unit or 'tablets'
         self.image_path = image_path
 
+def _parse_time_sort_key(time_val):
+    if not time_val:
+        return 9999
+    val_str = str(time_val).strip()
+    val_lower = val_str.lower()
+    if 'am' in val_lower or 'pm' in val_lower:
+        try:
+            parts = val_lower.replace('am', '').replace('pm', '').strip().split(':')
+            h = int(parts[0])
+            m = int(parts[1]) if len(parts) > 1 else 0
+            if 'pm' in val_lower and h < 12:
+                h += 12
+            elif 'am' in val_lower and h == 12:
+                h = 0
+            return h * 60 + m
+        except Exception:
+            return 9999
+    try:
+        parts = val_str.split(':')
+        h = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 else 0
+        return h * 60 + m
+    except Exception:
+        return 9999
+
+def _schedule_deadline_sort_key(sch):
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    date_str = str(sch.start_date or sch.schedule_date or today_str).strip()
+    if date_str < today_str:
+        date_str = today_str
+    time_minutes = _parse_time_sort_key(sch.time_value)
+    return (date_str, time_minutes, sch.schedule_id)
+
 class DoseAlert:
     def __init__(self):
         self.db = DatabaseManager()
@@ -42,10 +75,11 @@ class DoseAlert:
             FROM schedules s
             JOIN medications m ON s.medication_id = m.id
             WHERE m.user_id = ?
-            ORDER BY s.id DESC
         '''
         rows = self.db.fetch_all(query, (user_id,))
-        return [Schedule(*row) for row in rows]
+        schedules = [Schedule(*row) for row in rows]
+        schedules.sort(key=_schedule_deadline_sort_key)
+        return schedules
 
     def delete_schedule(self, schedule_id):
         self.db.execute_query("DELETE FROM schedules WHERE id = ?", (schedule_id,))
@@ -122,4 +156,5 @@ class DoseAlert:
                     "image_path": image_path
                 })
 
+        due_meds.sort(key=lambda m: (m.get('schedule_date') or today_str, _parse_time_sort_key(m.get('time_value'))))
         return due_meds

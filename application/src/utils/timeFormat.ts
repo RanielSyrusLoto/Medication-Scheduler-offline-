@@ -47,3 +47,76 @@ export function formatTimeWithAmPm(timeStr?: string | null): string {
 
   return trimmed;
 }
+
+/**
+ * Converts any time string ("08:00", "08:00 AM", "2:30 PM", "14:30") into total minutes from midnight (0..1439).
+ */
+export function parseTimeToMinutes(timeStr?: string | null): number {
+  if (!timeStr) return 9999;
+  const trimmed = timeStr.trim();
+  const lower = trimmed.toLowerCase();
+
+  // If 12-hour AM/PM format
+  if (lower.includes('am') || lower.includes('pm')) {
+    const isPm = lower.includes('pm');
+    const clean = lower.replace(/am|pm/g, '').trim();
+    const parts = clean.split(':');
+    let h = parseInt(parts[0], 10) || 0;
+    const m = parts[1] ? parseInt(parts[1], 10) || 0 : 0;
+    if (isPm && h < 12) h += 12;
+    if (!isPm && h === 12) h = 0;
+    return h * 60 + m;
+  }
+
+  // If HH:MM or HH:MM:SS format
+  const parts = trimmed.split(':');
+  if (parts.length >= 2) {
+    const h = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    if (!isNaN(h) && !isNaN(m)) {
+      return h * 60 + m;
+    }
+  }
+
+  return 9999;
+}
+
+/**
+ * Sorts medication schedules by deadline/intake time:
+ * The closest / earliest deadline to take is placed at the very front/top.
+ */
+export function sortSchedulesByDeadline<T extends {
+  time_value?: string;
+  start_date?: string | null;
+  schedule_date?: string | null;
+  schedule_id?: number;
+}>(items: T[]): T[] {
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+  return [...items].sort((a, b) => {
+    // 1. Determine effective date string
+    const rawDateA = (a.start_date || a.schedule_date || todayStr).trim();
+    const rawDateB = (b.start_date || b.schedule_date || todayStr).trim();
+
+    // If schedule date is today or past (active recurring), use todayStr
+    const dateA = rawDateA < todayStr ? todayStr : rawDateA;
+    const dateB = rawDateB < todayStr ? todayStr : rawDateB;
+
+    if (dateA !== dateB) {
+      return dateA.localeCompare(dateB);
+    }
+
+    // 2. Same date: compare time of day in minutes (earliest/closest deadline first)
+    const minutesA = parseTimeToMinutes(a.time_value);
+    const minutesB = parseTimeToMinutes(b.time_value);
+
+    if (minutesA !== minutesB) {
+      return minutesA - minutesB;
+    }
+
+    // Tie-break by schedule_id if available
+    return (a.schedule_id || 0) - (b.schedule_id || 0);
+  });
+}
+

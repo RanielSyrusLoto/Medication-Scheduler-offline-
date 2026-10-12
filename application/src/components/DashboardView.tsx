@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle, Repeat, Package } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, DashboardDataResponse, Schedule, HistoryLog, Medication } from '../types';
-import { formatTimeWithAmPm } from '../utils/timeFormat';
+import { formatTimeWithAmPm, sortSchedulesByDeadline } from '../utils/timeFormat';
 
 interface DashboardViewProps {
   user: User | null;
@@ -67,8 +67,8 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
   const takenCount = doses_taken > 0 ? doses_taken : 0;
   const upcomingCount = Math.max(0, due_meds.length > 0 ? due_meds.length : (totalDosesToday - takenCount));
 
-  // Determine which schedules to show in "Today's Schedule"
-  const todayScheduleItems = schedules.length > 0 ? schedules : due_meds;
+  // Determine which schedules to show in "Today's Schedule" (Sorted with closest intake deadline first)
+  const todayScheduleItems = sortSchedulesByDeadline(schedules.length > 0 ? schedules : due_meds);
 
   const colorPalettes = [
     { circle: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
@@ -181,15 +181,20 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
               </div>
             ) : (
               todayScheduleItems.map((item, idx) => {
-                const palette = colorPalettes[idx % colorPalettes.length];
-                const medName = item.med_name || (item as any).name || 'Medication';
-                const timeStr = item.time_value ? formatTimeWithAmPm(item.time_value) : 'Scheduled';
-                const dosageStr = item.dosage || (item as any).strength || '1 tablet';
-                const instructions = item.instructions || `${item.dose_per_intake || 1} ${item.dose_unit || 'tablet'}`;
+                const matchingMed = medications.find((m) => m.med_id === item.med_id);
+                const medName = item.med_name || (item as any).name || matchingMed?.name || 'Medication';
+                const strength = item.strength || (item as any).dosage || matchingMed?.strength || matchingMed?.dosage || '10mg';
+                const prescriptionId = item.med_id || matchingMed?.med_id || 801;
+                const timeStr = item.time_value ? formatTimeWithAmPm(item.time_value) : '08:00 AM';
+                const takeCount = item.dose_per_intake || 1;
+                const takeUnit = item.dose_unit || matchingMed?.stock_unit || 'tablet';
+                const repeat = item.frequency || 'Every day';
+                const stockRemaining = item.stock ?? matchingMed?.stock ?? 0;
+                const stockUnit = item.stock_unit || matchingMed?.stock_unit || 'tablets';
 
                 // Resolve drug picture linked to medication
                 const resolveMedImage = (): string => {
-                  const directPath = (item as any).image_path || medications.find((m) => m.med_id === item.med_id)?.image_path;
+                  const directPath = (item as any).image_path || matchingMed?.image_path;
                   if (directPath && directPath.startsWith('data:')) {
                     return directPath;
                   }
@@ -213,44 +218,94 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
                 return (
                   <div
                     key={item.schedule_id || (item as any).med_id || idx}
-                    className="p-3 rounded-2xl border border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9]/50 dark:bg-[#172838]/40 hover:bg-[#F3F6F9] dark:hover:bg-[#172838] transition-all flex items-center justify-between gap-3 shadow-xs"
+                    className="rounded-2xl border border-[#b8cbd9] dark:border-[#2b4154] bg-gradient-to-r from-[#d0dfec]/85 via-[#e0ebf3]/75 to-[#edf3f7]/90 dark:from-[#1b2f40] dark:via-[#162736] dark:to-[#13222f] p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center shadow-xs">
-                        <img
-                          src={imgSrc}
-                          alt={medName}
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
-                          }}
-                          className="w-full h-full object-cover rounded-2xl"
-                          style={{ width: '44px', height: '44px' }}
-                        />
+                    {/* Subtle medical cross & DNA helix watermark matching reference */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-30 select-none">
+                      <svg
+                        className="w-64 h-28 text-[#487394]/20 dark:text-[#6597be]/15"
+                        viewBox="0 0 240 100"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        {/* Medical Cross */}
+                        <path d="M100,20 h25 v25 h25 v25 h-25 v25 h-25 v-25 h-25 v-25 h25 z" />
+                        {/* DNA Helix */}
+                        <path d="M160,22 Q180,50 200,22 T240,22" strokeDasharray="3 3" />
+                        <path d="M160,78 Q180,50 200,78 T240,78" strokeDasharray="3 3" />
+                        <line x1="170" y1="34" x2="170" y2="66" />
+                        <line x1="190" y1="34" x2="190" y2="66" />
+                        <line x1="210" y1="34" x2="210" y2="66" />
+                        <line x1="230" y1="34" x2="230" y2="66" />
+                      </svg>
+                    </div>
+
+                    {/* Top Row: Picture + Drug Name + Strength Badge + Prescription ID (Left) & Time Pill + Check Button (Right) */}
+                    <div className="flex items-center justify-between gap-3 relative z-1">
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Drug Picture Squircle Container matching reference */}
+                        <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] aspect-square rounded-2xl overflow-hidden border border-[#bccddc] dark:border-[#2e4354] shrink-0 bg-white dark:bg-[#172838] p-0.5 flex items-center justify-center shadow-xs">
+                          <img
+                            src={imgSrc}
+                            alt={medName}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                            }}
+                            className="w-full h-full object-cover rounded-xl"
+                            style={{ width: '44px', height: '44px' }}
+                          />
+                        </div>
+
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-base font-extrabold text-[#112338] dark:text-white truncate tracking-tight">
+                              {medName}
+                            </h4>
+                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border border-[#bcd6ed] dark:border-[#2c5375] text-[#1b6194] dark:text-[#88bfe8] bg-[#e3eef8] dark:bg-[#1b344e] shrink-0">
+                              {strength}
+                            </span>
+                          </div>
+                          <span className="text-xs text-[#5e788e] dark:text-[#8ea5b6] block mt-0.5 font-medium">
+                            Prescription ID #{prescriptionId}
+                          </span>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <h3 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white truncate">
-                          {medName}
-                        </h3>
-                        <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] truncate mt-0.5">
-                          {dosageStr} • {instructions}
-                        </p>
+
+                      {/* Right: Scheduled Time Pill & Check Mark Button (Mark as Taken) */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#172838] border border-[#c0d2e0] dark:border-[#2a3f52] text-xs font-semibold text-[#14324f] dark:text-white shadow-2xs">
+                          <Clock className="w-3.5 h-3.5 text-[#14324f] dark:text-[#2dd4bf]" />
+                          <span>{timeStr}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleTakeDose(item.med_id)}
+                          title="Mark as Taken"
+                          className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
+                        >
+                          <Check className="w-4 h-4 stroke-[2.5]" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#245878] text-white text-xs font-semibold shadow-xs">
-                        <Clock className="w-3.5 h-3.5 text-white/90" />
-                        <span>{timeStr}</span>
+                    {/* Bottom Row: 3 Capsule Badges (Take, Repeat, Stock) matching reference */}
+                    <div className="flex items-center gap-2 flex-wrap pt-0.5 relative z-1">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#c0d2e0] dark:border-[#385166] bg-white/95 dark:bg-white/5 text-xs font-medium text-[#14324f] dark:text-[#c5d9e8] shadow-2xs">
+                        <Pill className="w-3.5 h-3.5 text-[#1b6194] dark:text-[#9bc2db] -rotate-45" />
+                        <span>Take: {takeCount} {takeUnit}</span>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleTakeDose(item.med_id)}
-                        title="Mark as Taken"
-                        className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0"
-                      >
-                        <Check className="w-4 h-4 stroke-[2.5]" />
-                      </button>
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#c0d2e0] dark:border-[#385166] bg-white/95 dark:bg-white/5 text-xs font-medium text-[#14324f] dark:text-[#c5d9e8] shadow-2xs">
+                        <Repeat className="w-3.5 h-3.5 text-[#1b6194] dark:text-[#9bc2db]" />
+                        <span>Repeat: {repeat}</span>
+                      </div>
+
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#c0d2e0] dark:border-[#385166] bg-white/95 dark:bg-white/5 text-xs font-medium text-[#14324f] dark:text-[#c5d9e8] shadow-2xs">
+                        <Package className="w-3.5 h-3.5 text-[#1b6194] dark:text-[#9bc2db]" />
+                        <span>Stock: {stockRemaining} {stockUnit}</span>
+                      </div>
                     </div>
                   </div>
                 );

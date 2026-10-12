@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Pill, Check, Calendar, Clock, Plus, X, AlertCircle, Trash2, ChevronLeft, ChevronRight, Search, Droplets, Repeat, Info, Package } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, Schedule, Medication } from '../types';
-import { formatTimeWithAmPm } from '../utils/timeFormat';
+import { formatTimeWithAmPm, sortSchedulesByDeadline } from '../utils/timeFormat';
 
 interface IntakeViewProps {
   user: User | null;
@@ -176,18 +176,20 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
     setCurrentDate(next);
   };
 
-  // Filter schedules based on search term
-  const filteredSchedules = schedules.filter((sch) => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return (
-      (sch.med_name || '').toLowerCase().includes(term) ||
-      (sch.strength || sch.dosage || '').toLowerCase().includes(term) ||
-      (sch.time_value || '').toLowerCase().includes(term) ||
-      (sch.frequency || '').toLowerCase().includes(term) ||
-      (sch.instructions || '').toLowerCase().includes(term)
-    );
-  });
+  // Filter schedules based on search term and sort by intake deadline (closest deadline first)
+  const filteredSchedules = sortSchedulesByDeadline(
+    schedules.filter((sch) => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        (sch.med_name || '').toLowerCase().includes(term) ||
+        (sch.strength || sch.dosage || '').toLowerCase().includes(term) ||
+        (sch.time_value || '').toLowerCase().includes(term) ||
+        (sch.frequency || '').toLowerCase().includes(term) ||
+        (sch.instructions || '').toLowerCase().includes(term)
+      );
+    })
+  );
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
