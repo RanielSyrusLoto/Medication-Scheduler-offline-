@@ -45,7 +45,26 @@ export function formatTimeWithAmPm(timeStr?: string | null): string {
     return `${datePart} ${formattedHours}:${minutes} ${ampm}`;
   }
 
-  return trimmed;
+  // Format: Pure integer hours or intervals (e.g. "24", "12", "8", "6", "4", "24 hrs")
+  const numericOnlyMatch = trimmed.match(/^(\d{1,2})(?:\s*(?:h|hr|hrs|hours))?$/i);
+  if (numericOnlyMatch) {
+    const num = parseInt(numericOnlyMatch[1], 10);
+    if (num === 24) {
+      return '08:00 AM';
+    }
+    if (num === 0) {
+      return '12:00 AM';
+    }
+    if (num <= 23) {
+      const ampm = num >= 12 ? 'PM' : 'AM';
+      let hours = num % 12;
+      if (hours === 0) hours = 12;
+      const formattedHours = hours < 10 ? `0${hours}` : `${hours}`;
+      return `${formattedHours}:00 ${ampm}`;
+    }
+  }
+
+  return '08:00 AM';
 }
 
 /**
@@ -76,6 +95,14 @@ export function parseTimeToMinutes(timeStr?: string | null): number {
     if (!isNaN(h) && !isNaN(m)) {
       return h * 60 + m;
     }
+  }
+
+  // If single/double digit hours or intervals like "24", "12", "8"
+  const numMatch = trimmed.match(/^(\d{1,2})/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    if (num === 24) return 8 * 60; // 08:00 AM
+    if (num <= 23) return num * 60;
   }
 
   return 9999;

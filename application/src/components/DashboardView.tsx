@@ -68,7 +68,12 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
   const upcomingCount = Math.max(0, due_meds.length > 0 ? due_meds.length : (totalDosesToday - takenCount));
 
   // Determine which schedules to show in "Today's Schedule" (Sorted with closest intake deadline first)
-  const todayScheduleItems = sortSchedulesByDeadline(schedules.length > 0 ? schedules : due_meds);
+  const validSchedules = (schedules.length > 0 ? schedules : due_meds).filter((item) => {
+    const matchingMed = medications.find((m) => m.med_id === item.med_id);
+    const medName = item.med_name || (item as any).name || matchingMed?.name;
+    return Boolean(medName && medName.trim());
+  });
+  const todayScheduleItems = sortSchedulesByDeadline(validSchedules);
 
   const colorPalettes = [
     { circle: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },

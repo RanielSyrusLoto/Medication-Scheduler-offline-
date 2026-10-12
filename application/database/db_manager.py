@@ -180,6 +180,13 @@ class DatabaseManager:
         except sqlite3.OperationalError:
             pass
 
+        try:
+            cursor.execute("UPDATE schedules SET time_value = '08:00', schedule_type = 'DAILY_TIME' WHERE time_value IN ('24', '12', '8', '4')")
+            cursor.execute("UPDATE schedules SET time_value = '06:00', schedule_type = 'DAILY_TIME' WHERE time_value = '6'")
+            cursor.execute("DELETE FROM schedules WHERE medication_id NOT IN (SELECT id FROM medications)")
+        except Exception:
+            pass
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS notifications_sent (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

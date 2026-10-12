@@ -176,13 +176,16 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
     setCurrentDate(next);
   };
 
-  // Filter schedules based on search term and sort by intake deadline (closest deadline first)
+  // Filter schedules based on valid medication name, search term, and sort by intake deadline
   const filteredSchedules = sortSchedulesByDeadline(
     schedules.filter((sch) => {
+      const matchingMed = medications.find((m) => m.med_id === sch.med_id);
+      const name = sch.med_name || matchingMed?.name;
+      if (!name || !name.trim()) return false;
       if (!searchTerm) return true;
       const term = searchTerm.toLowerCase();
       return (
-        (sch.med_name || '').toLowerCase().includes(term) ||
+        name.toLowerCase().includes(term) ||
         (sch.strength || sch.dosage || '').toLowerCase().includes(term) ||
         (sch.time_value || '').toLowerCase().includes(term) ||
         (sch.frequency || '').toLowerCase().includes(term) ||
