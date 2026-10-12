@@ -274,81 +274,127 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
               const stockRemaining = sch.stock ?? matchingMed?.stock ?? 0;
               const stockUnit = sch.stock_unit || matchingMed?.stock_unit || 'tablets';
 
+              // Resolve drug picture linked to medication
+              const resolveMedImage = (): string => {
+                const directPath = sch.image_path || matchingMed?.image_path;
+                if (directPath && directPath.startsWith('data:')) {
+                  return directPath;
+                }
+                const nameClean = (sch.med_name || matchingMed?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                if (nameClean.includes('paracetamol') || nameClean.includes('biogesic')) return '/drug_images/paracetamol.jpg';
+                if (nameClean.includes('vitaminc') || (nameClean.includes('vitamin') && nameClean.includes('c')) || nameClean.includes('ascorbic')) return '/drug_images/vitaminc.jpg';
+                if (nameClean.includes('multivitamin') || nameClean.includes('centrum') || nameClean.includes('revicon')) return '/drug_images/multivitamin.jpg';
+                if (nameClean.includes('ibuprofen') || nameClean.includes('advil') || nameClean.includes('motrin')) return '/drug_images/ibuprofen.jpg';
+
+                if (directPath) {
+                  if (directPath.startsWith('http') || directPath.startsWith('/')) {
+                    return directPath;
+                  }
+                  return `/drug_images/${directPath.replace('/drug_images/', '')}`;
+                }
+                return `/drug_images/${nameClean}.png`;
+              };
+
+              const imgSrc = resolveMedImage();
+
               return (
                 <div
                   key={sch.schedule_id}
-                  className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row items-stretch justify-between gap-4"
+                  className="rounded-2xl border border-[#bcccd8] dark:border-[#2b4154] bg-gradient-to-r from-[#b5c7d6]/75 via-[#dbe4eb]/65 to-[#ece9e2]/85 dark:from-[#1b2f40] dark:via-[#162736] dark:to-[#13222f] p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row items-stretch justify-between gap-4 relative overflow-hidden group"
                 >
-                  {/* Left Side: Start Date Panel */}
-                  <div className="w-full lg:w-32 xl:w-36 shrink-0 flex flex-col justify-center pb-2 lg:pb-0 border-b lg:border-b-0 lg:border-r border-[#E3E8EE] dark:border-[#1c3345] pr-0 lg:pr-3">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#2E7D7E] dark:text-[#2dd4bf] block mb-0.5">
+                  {/* Subtle medical cross & DNA helix watermark matching reference */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-40">
+                    <svg
+                      className="w-56 h-28 text-[#507d9d]/15 dark:text-[#6597be]/10 select-none"
+                      viewBox="0 0 200 100"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                    >
+                      <path d="M70,25 h20 v20 h20 v20 h-20 v20 h-20 v-20 h-20 v-20 h20 z" />
+                      <path d="M125,20 Q145,50 165,20 T205,20" strokeDasharray="3 3" />
+                      <path d="M125,80 Q145,50 165,80 T205,80" strokeDasharray="3 3" />
+                      <line x1="135" y1="35" x2="135" y2="65" />
+                      <line x1="155" y1="35" x2="155" y2="65" />
+                      <line x1="175" y1="35" x2="175" y2="65" />
+                      <line x1="195" y1="35" x2="195" y2="65" />
+                    </svg>
+                  </div>
+
+                  {/* Left Side: Start Date Panel (With Separator Line) */}
+                  <div className="w-full lg:w-32 xl:w-36 shrink-0 flex flex-col justify-center pb-2 lg:pb-0 border-b lg:border-b-0 lg:border-r border-[#a8b8c4]/60 dark:border-[#2a3f52] pr-0 lg:pr-3 relative z-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#47677d] dark:text-[#7ba1bd] block mb-0.5">
                       Start Date
                     </span>
                     <h3 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white leading-tight">
                       {startInfo.dateFormatted}
                     </h3>
-                    <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-0.5">
+                    <p className="text-[11px] text-[#5a7487] dark:text-[#8ba3b5] mt-0.5">
                       {startInfo.dayName}
                     </p>
                   </div>
 
-                  {/* Middle: Expanded Medication Details */}
-                  <div className="flex-1 min-w-0 px-0 lg:px-2 flex flex-col justify-between space-y-2.5">
+                  {/* Middle: Expanded Medication Details (NO green highlights on picture) */}
+                  <div className="flex-1 min-w-0 px-0 lg:px-2 flex flex-col justify-between space-y-2.5 relative z-1">
                     {/* Header Row: Drug Name, Dosage & Scheduled Time */}
                     <div className="flex items-start justify-between gap-2.5 flex-wrap">
                       <div className="flex items-center gap-2.5">
-                        {sch.image_path || matchingMed?.image_path ? (
-                          <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 shadow-xs bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center">
-                            <img src={sch.image_path || matchingMed?.image_path || ''} alt={sch.med_name} className="w-full h-full object-cover rounded-xl" style={{ width: '40px', height: '40px' }} />
-                          </div>
-                        ) : (
-                          <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center shrink-0 shadow-xs">
-                            <Pill className="w-5 h-5 -rotate-45" />
-                          </div>
-                        )}
+                        {/* Clean Neutral Picture Container - Absolutely NO green highlight */}
+                        <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl overflow-hidden border border-[#94a9b8]/50 dark:border-[#2e4354] shrink-0 shadow-xs bg-white/70 dark:bg-[#172838] flex items-center justify-center">
+                          <img
+                            src={imgSrc}
+                            alt={sch.med_name}
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                            }}
+                            className="w-full h-full object-cover rounded-xl"
+                            style={{ width: '40px', height: '40px' }}
+                          />
+                        </div>
+
                         <div>
                           <div className="flex items-center gap-2">
                             <h4 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white">
                               {sch.med_name}
                             </h4>
-                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-teal-50 text-[#2E7D7E] border border-teal-200 dark:bg-teal-500/15 dark:text-[#2dd4bf] dark:border-teal-500/30">
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/60 dark:bg-white/10 text-[#245878] dark:text-[#9bc2db] border border-[#a8b8c4]/60 dark:border-[#385166]">
                               {sch.strength || sch.dosage || 'Standard'}
                             </span>
                           </div>
-                          <span className="text-[10px] text-[#8B9DA8] dark:text-[#859ba8] font-medium block mt-0.5">
+                          <span className="text-[10px] text-[#6b8293] dark:text-[#8ea5b6] font-medium block mt-0.5">
                             Prescription ID #{sch.med_id}
                           </span>
                         </div>
                       </div>
 
-                      {/* Scheduled Time Pill */}
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
-                        <Clock className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                      {/* Scheduled Time Pill (Clean Original Style) */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/70 dark:bg-[#172838] border border-[#a8b8c4]/70 dark:border-[#2a3f52] text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
+                        <Clock className="w-3.5 h-3.5 text-[#245878] dark:text-[#2dd4bf]" />
                         <span>{formatTimeWithAmPm(sch.time_value)}</span>
                       </div>
                     </div>
 
-                    {/* Detailed Spec Chips */}
+                    {/* Spec Chips */}
                     <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap pt-0.5">
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F3F6F9]/80 dark:bg-[#172838]/60 text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
-                        <Pill className="w-3 h-3 text-[#2E7D7E]" />
+                      <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 dark:bg-white/5 border border-[#a8b8c4]/50 dark:border-[#385166] text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
+                        <Pill className="w-3 h-3 text-[#245878] -rotate-45" />
                         <span>Take: <strong className="font-semibold">{sch.dose_per_intake || 1} {sch.dose_unit || 'tablet'}</strong></span>
                       </div>
 
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F3F6F9]/80 dark:bg-[#172838]/60 text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
-                        <Repeat className="w-3 h-3 text-[#2E7D7E]" />
+                      <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 dark:bg-white/5 border border-[#a8b8c4]/50 dark:border-[#385166] text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
+                        <Repeat className="w-3 h-3 text-[#245878]" />
                         <span>Repeat: <strong className="font-semibold">{sch.frequency || 'Daily'}</strong></span>
                       </div>
 
-                      <div className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-[#F3F6F9]/80 dark:bg-[#172838]/60 text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
-                        <Package className="w-3 h-3 text-[#2E7D7E]" />
+                      <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/60 dark:bg-white/5 border border-[#a8b8c4]/50 dark:border-[#385166] text-[10px] font-medium text-[#1E2837] dark:text-slate-200">
+                        <Package className="w-3 h-3 text-[#245878]" />
                         <span>Stock: <strong className="font-semibold">{stockRemaining} {stockUnit}</strong></span>
                       </div>
                     </div>
 
                     {/* Clinical Instructions / Notes */}
                     {sch.instructions && (
-                      <div className="p-2 rounded-xl bg-teal-50/50 dark:bg-teal-950/20 border border-teal-100 dark:border-teal-900/40 flex items-start gap-1.5 text-[11px] text-[#2E7D7E] dark:text-[#2dd4bf]">
+                      <div className="p-1.5 rounded-xl bg-white/40 dark:bg-white/5 border border-[#a8b8c4]/40 dark:border-[#385166] flex items-start gap-1.5 text-[11px] text-[#245878] dark:text-[#2dd4bf]">
                         <Info className="w-3 h-3 shrink-0 mt-0.5" />
                         <span className="leading-snug truncate">
                           <strong>Note:</strong> {sch.instructions}
@@ -357,16 +403,16 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
                     )}
                   </div>
 
-                  {/* Right Side: End Date & Actions Panel */}
-                  <div className="w-full lg:w-32 xl:w-36 shrink-0 flex flex-col justify-between pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-[#E3E8EE] dark:border-[#1c3345] pl-0 lg:pl-3">
+                  {/* Right Side: End Date & Actions Panel (With Separator Line) */}
+                  <div className="w-full lg:w-32 xl:w-36 shrink-0 flex flex-col justify-between pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-[#a8b8c4]/60 dark:border-[#2a3f52] pl-0 lg:pl-3 relative z-1">
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#8B9DA8] dark:text-[#859ba8] block mb-0.5 text-left lg:text-right">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[#688295] dark:text-[#8ba3b5] block mb-0.5 text-left lg:text-right">
                         End Date
                       </span>
                       <h3 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white leading-tight text-left lg:text-right">
                         {endInfo.dateFormatted}
                       </h3>
-                      <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] mt-0.5 text-left lg:text-right">
+                      <p className="text-[11px] text-[#688295] dark:text-[#8ba3b5] mt-0.5 text-left lg:text-right">
                         {endInfo.dayName}
                       </p>
                     </div>
@@ -387,7 +433,7 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
                         type="button"
                         onClick={() => setPendingDeleteSchedule(sch)}
                         title="Delete Schedule"
-                        className="p-1 text-[#8B9DA8] hover:text-rose-500 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
+                        className="p-1 text-[#688295] hover:text-rose-500 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-500/10 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>

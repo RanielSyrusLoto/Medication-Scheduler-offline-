@@ -39,6 +39,7 @@ export interface Schedule {
   stock_unit?: string;
   status?: string;
   schedule_date?: string;
+  image_path?: string | null;
 }
 
 export interface HistoryLog {

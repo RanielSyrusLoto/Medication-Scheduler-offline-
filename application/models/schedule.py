@@ -2,7 +2,7 @@ from database.db_manager import DatabaseManager
 from datetime import datetime, timedelta
 
 class Schedule:
-    def __init__(self, schedule_id, med_id, schedule_type, time_value, schedule_date=None, dose_per_intake=1, dose_unit='tablet', frequency='Every day', start_date=None, end_date=None, instructions='', status='ACTIVE', med_name='', strength='', stock=0, stock_unit='tablets'):
+    def __init__(self, schedule_id, med_id, schedule_type, time_value, schedule_date=None, dose_per_intake=1, dose_unit='tablet', frequency='Every day', start_date=None, end_date=None, instructions='', status='ACTIVE', med_name='', strength='', stock=0, stock_unit='tablets', image_path=None):
         self.schedule_id = schedule_id
         self.med_id = med_id
         self.schedule_type = schedule_type
@@ -19,6 +19,7 @@ class Schedule:
         self.strength = strength
         self.stock = stock
         self.stock_unit = stock_unit or 'tablets'
+        self.image_path = image_path
 
 class DoseAlert:
     def __init__(self):
@@ -36,7 +37,8 @@ class DoseAlert:
             SELECT s.id, s.medication_id, s.schedule_type, s.time_value, s.schedule_date,
                    COALESCE(s.dose_per_intake, 1), COALESCE(s.dose_unit, 'tablet'), COALESCE(s.frequency, 'Every day'),
                    s.start_date, s.end_date, COALESCE(s.instructions, ''), COALESCE(s.status, 'ACTIVE'),
-                   m.name, COALESCE(NULLIF(m.strength, ''), m.dosage), m.stock, COALESCE(NULLIF(m.stock_unit, ''), 'tablets')
+                   m.name, COALESCE(NULLIF(m.strength, ''), m.dosage), m.stock, COALESCE(NULLIF(m.stock_unit, ''), 'tablets'),
+                   m.image_path
             FROM schedules s
             JOIN medications m ON s.medication_id = m.id
             WHERE m.user_id = ?
@@ -66,15 +68,15 @@ class DoseAlert:
 
         query = '''
             SELECT m.id, m.name, m.dosage, s.schedule_type, s.time_value, s.schedule_date,
-            (SELECT MAX(timestamp) FROM intake_log WHERE medication_id = m.id AND status = 'TAKEN') as last_taken
+            (SELECT MAX(timestamp) FROM intake_log WHERE medication_id = m.id AND status = 'TAKEN') as last_taken,
+            m.image_path, COALESCE(NULLIF(m.strength, ''), m.dosage)
             FROM medications m
             JOIN schedules s ON m.id = s.medication_id
             WHERE m.user_id = ?
         '''
         rows = self.db.fetch_all(query, (user_id,))
 
-        for med_id, med_name, dosage, sched_type, time_value, sched_date, last_taken_str in rows:
-
+        for med_id, med_name, dosage, sched_type, time_value, sched_date, last_taken_str, image_path, strength in rows:
             if sched_date and str(sched_date).strip():
                 clean_date = str(sched_date).strip()
                 if clean_date != today_str:
@@ -88,7 +90,6 @@ class DoseAlert:
                     pass
 
             if last_taken_time and last_taken_time.date() == now.date():
-
                 continue
 
             is_due = False
@@ -114,9 +115,11 @@ class DoseAlert:
                 due_meds.append({
                     "med_id": med_id, 
                     "name": med_name, 
-                    "dosage": dosage, 
+                    "dosage": dosage,
+                    "strength": strength,
                     "time_value": time_value,
-                    "schedule_date": sched_date or today_str
+                    "schedule_date": sched_date or today_str,
+                    "image_path": image_path
                 })
 
         return due_meds

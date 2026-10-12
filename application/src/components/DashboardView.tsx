@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
-import { User, DashboardDataResponse, Schedule, HistoryLog } from '../types';
+import { User, DashboardDataResponse, Schedule, HistoryLog, Medication } from '../types';
 import { formatTimeWithAmPm } from '../utils/timeFormat';
 
 interface DashboardViewProps {
@@ -13,15 +13,17 @@ interface DashboardViewProps {
 export default function DashboardView({ user, onDataChange, onNavigate }: DashboardViewProps): React.JSX.Element {
   const [data, setData] = useState<DashboardDataResponse | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
 
   const fetchDashboard = async () => {
     if (!user?.user_id) return;
     setLoading(true);
     try {
-      const [dashRes, schRes] = await Promise.all([
+      const [dashRes, schRes, medRes] = await Promise.all([
         callApi<DashboardDataResponse>('get_dashboard_data', user.user_id),
-        callApi('get_schedules', user.user_id)
+        callApi('get_schedules', user.user_id),
+        callApi('get_medications', user.user_id)
       ]);
 
       if (dashRes && dashRes.success) {
@@ -29,6 +31,9 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
       }
       if (schRes && schRes.success) {
         setSchedules(schRes.schedules || []);
+      }
+      if (medRes && medRes.success) {
+        setMedications(medRes.medications || []);
       }
     } catch (e) {
       console.error('Failed fetching dashboard info', e);
@@ -182,23 +187,48 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
                 const dosageStr = item.dosage || (item as any).strength || '1 tablet';
                 const instructions = item.instructions || `${item.dose_per_intake || 1} ${item.dose_unit || 'tablet'}`;
 
+                // Resolve drug picture linked to medication
+                const resolveMedImage = (): string => {
+                  const directPath = (item as any).image_path || medications.find((m) => m.med_id === item.med_id)?.image_path;
+                  if (directPath && directPath.startsWith('data:')) {
+                    return directPath;
+                  }
+                  const nameClean = (medName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+                  if (nameClean.includes('paracetamol') || nameClean.includes('biogesic')) return '/drug_images/paracetamol.jpg';
+                  if (nameClean.includes('vitaminc') || (nameClean.includes('vitamin') && nameClean.includes('c')) || nameClean.includes('ascorbic')) return '/drug_images/vitaminc.jpg';
+                  if (nameClean.includes('multivitamin') || nameClean.includes('centrum') || nameClean.includes('revicon')) return '/drug_images/multivitamin.jpg';
+                  if (nameClean.includes('ibuprofen') || nameClean.includes('advil') || nameClean.includes('motrin')) return '/drug_images/ibuprofen.jpg';
+
+                  if (directPath) {
+                    if (directPath.startsWith('http') || directPath.startsWith('/')) {
+                      return directPath;
+                    }
+                    return `/drug_images/${directPath.replace('/drug_images/', '')}`;
+                  }
+                  return `/drug_images/${nameClean}.png`;
+                };
+
+                const imgSrc = resolveMedImage();
+
                 return (
                   <div
                     key={item.schedule_id || (item as any).med_id || idx}
-                    className="p-3 rounded-xl border border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9]/50 dark:bg-[#172838]/40 hover:bg-[#F3F6F9] dark:hover:bg-[#172838] transition-all flex items-center justify-between gap-3"
+                    className="p-3 rounded-2xl border border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9]/50 dark:bg-[#172838]/40 hover:bg-[#F3F6F9] dark:hover:bg-[#172838] transition-all flex items-center justify-between gap-3 shadow-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      {(item as any).image_path ? (
-                        <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center">
-                          <img src={(item as any).image_path} alt={medName} className="w-full h-full object-cover rounded-xl" style={{ width: '40px', height: '40px' }} />
-                        </div>
-                      ) : (
-                        <div className={`w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] aspect-square rounded-xl flex items-center justify-center shrink-0 ${palette.circle}`}>
-                          <Pill className="w-5 h-5 -rotate-45" />
-                        </div>
-                      )}
+                      <div className="w-11 h-11 min-w-[44px] min-h-[44px] max-w-[44px] max-h-[44px] aspect-square rounded-2xl overflow-hidden border border-[#E3E8EE] dark:border-[#1c3345] shrink-0 bg-[#F3F6F9] dark:bg-[#172838] flex items-center justify-center shadow-xs">
+                        <img
+                          src={imgSrc}
+                          alt={medName}
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                          }}
+                          className="w-full h-full object-cover rounded-2xl"
+                          style={{ width: '44px', height: '44px' }}
+                        />
+                      </div>
                       <div className="min-w-0">
-                        <h3 className="text-xs font-bold text-[#1E2837] dark:text-white truncate">
+                        <h3 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white truncate">
                           {medName}
                         </h3>
                         <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] truncate mt-0.5">
@@ -208,8 +238,8 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
                     </div>
 
                     <div className="flex items-center gap-2.5 shrink-0">
-                      <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#F3F6F9] dark:bg-[#172838] text-xs font-medium text-[#64748B] dark:text-[#859ba8]">
-                        <Clock className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#245878] text-white text-xs font-semibold shadow-xs">
+                        <Clock className="w-3.5 h-3.5 text-white/90" />
                         <span>{timeStr}</span>
                       </div>
 

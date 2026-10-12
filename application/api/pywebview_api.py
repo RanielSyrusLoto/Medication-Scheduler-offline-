@@ -243,7 +243,8 @@ class PythonAPI:
                     "instructions": s.instructions,
                     "status": s.status,
                     "stock": s.stock,
-                    "stock_unit": s.stock_unit
+                    "stock_unit": s.stock_unit,
+                    "image_path": getattr(s, 'image_path', None)
                 })
             return {"success": True, "schedules": result}
         except Exception as e:
