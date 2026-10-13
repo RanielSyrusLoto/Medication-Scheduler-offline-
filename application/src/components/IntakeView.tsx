@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Pill, Check, Calendar, Clock, Plus, X, AlertCircle, Trash2, ChevronLeft, ChevronRight, Search, Droplets, Repeat, Info, Package } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, Schedule, Medication } from '../types';
-import { formatTimeWithAmPm, sortSchedulesByDeadline } from '../utils/timeFormat';
+import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached } from '../utils/timeFormat';
 
 interface IntakeViewProps {
   user: User | null;
@@ -12,6 +12,12 @@ interface IntakeViewProps {
 interface FormMessage {
   text: string;
   isError: boolean;
+}
+
+interface PendingDosePrompt {
+  sch: Schedule;
+  medName: string;
+  timeStr: string;
 }
 
 function formatDateDisplay(dateStr?: string | null): { dateFormatted: string; dayName: string } {
@@ -53,6 +59,12 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
   // Pending delete schedule modal
   const [pendingDeleteSchedule, setPendingDeleteSchedule] = useState<Schedule | null>(null);
 
+  // Pending early take dose confirmation modal
+  const [pendingDosePrompt, setPendingDosePrompt] = useState<PendingDosePrompt | null>(null);
+
+  // Date filtering state by month
+  const [filterByMonth, setFilterByMonth] = useState<boolean>(true);
+
   const fetchSchedulesAndMeds = async () => {
     if (!user?.user_id) return;
     setLoading(true);
@@ -83,7 +95,7 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
     fetchSchedulesAndMeds();
   }, [user]);
 
-  const handleTakeDose = async (sch: Schedule) => {
+  const executeTakeDose = async (sch: Schedule) => {
     if (!user?.user_id) return;
     try {
       const amt = (typeof sch.dose_per_intake === 'number' ? sch.dose_per_intake : parseInt(sch.dose_per_intake as any, 10)) || 1;
@@ -95,6 +107,29 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
     } catch (e) {
       console.error('Error logging dose', e);
     }
+  };
+
+  const handleTakeDose = (sch: Schedule) => {
+    const isTime = isScheduleTimeReached(sch.time_value, sch.schedule_date, sch.start_date);
+    if (isTime) {
+      // It's time or past due: take immediately
+      executeTakeDose(sch);
+    } else {
+      // Not time yet: ask for confirmation
+      const matchingMed = medications.find((m) => m.med_id === sch.med_id);
+      setPendingDosePrompt({
+        sch,
+        medName: sch.med_name || matchingMed?.name || 'Medication',
+        timeStr: formatTimeWithAmPm(sch.time_value),
+      });
+    }
+  };
+
+  const confirmTakeEarlyDose = () => {
+    if (!pendingDosePrompt) return;
+    const targetSch = pendingDosePrompt.sch;
+    setPendingDosePrompt(null);
+    executeTakeDose(targetSch);
   };
 
   const confirmDeleteSchedule = async () => {
@@ -176,12 +211,41 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
     setCurrentDate(next);
   };
 
-  // Filter schedules based on valid medication name, search term, and sort by intake deadline
+  // Determine start & end of currently viewed month for date filtering
+  const viewYear = currentDate.getFullYear();
+  const viewMonth = currentDate.getMonth() + 1; // 1 to 12
+  const monthStartStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-01`;
+  const lastDayOfMonth = new Date(viewYear, viewMonth, 0).getDate();
+  const monthEndStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(lastDayOfMonth).padStart(2, '0')}`;
+
+  const isCurrentMonthView = (() => {
+    const now = new Date();
+    return now.getFullYear() === viewYear && (now.getMonth() + 1) === viewMonth;
+  })();
+
+  // Filter schedules based on valid medication name, search term, date range, and sort by intake deadline
   const filteredSchedules = sortSchedulesByDeadline(
     schedules.filter((sch) => {
       const matchingMed = medications.find((m) => m.med_id === sch.med_id);
       const name = sch.med_name || matchingMed?.name;
       if (!name || !name.trim()) return false;
+
+      // Date filtering by selected month (if filterByMonth is active)
+      if (filterByMonth) {
+        const schedStart = (sch.start_date || sch.schedule_date || '').trim();
+        const schedEnd = (sch.end_date || '').trim();
+
+        if (schedStart) {
+          // If schedule starts after this month ends, exclude
+          if (schedStart > monthEndStr) return false;
+          // If schedule has an end date and ended before this month starts, exclude
+          if (schedEnd && schedEnd < monthStartStr) return false;
+        } else if (schedEnd) {
+          if (schedEnd < monthStartStr) return false;
+        }
+      }
+
+      // Search term filter
       if (!searchTerm) return true;
       const term = searchTerm.toLowerCase();
       return (
@@ -189,7 +253,9 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
         (sch.strength || sch.dosage || '').toLowerCase().includes(term) ||
         (sch.time_value || '').toLowerCase().includes(term) ||
         (sch.frequency || '').toLowerCase().includes(term) ||
-        (sch.instructions || '').toLowerCase().includes(term)
+        (sch.instructions || '').toLowerCase().includes(term) ||
+        (sch.start_date || '').toLowerCase().includes(term) ||
+        (sch.end_date || '').toLowerCase().includes(term)
       );
     })
   );
@@ -220,27 +286,54 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
             )}
           </div>
 
-          {/* Month Selector & Create Schedule Button */}
-          <div className="flex items-center gap-3 self-end sm:self-auto">
-            <div className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
-              <button
-                type="button"
-                onClick={prevMonth}
-                className="p-1 hover:text-[#2E7D7E] dark:hover:text-[#2dd4bf] transition-colors"
-                title="Previous Month"
-              >
-                <ChevronLeft className="w-3.5 h-3.5" />
-              </button>
-              <span className="min-w-[120px] text-center">{monthYearLabel}</span>
-              <button
-                type="button"
-                onClick={nextMonth}
-                className="p-1 hover:text-[#2E7D7E] dark:hover:text-[#2dd4bf] transition-colors"
-                title="Next Month"
-              >
-                <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
+          {/* Month Selector & Controls */}
+          <div className="flex items-center gap-2.5 self-end sm:self-auto flex-wrap">
+            {/* Toggle Button: Month Filter vs All */}
+            <button
+              type="button"
+              onClick={() => setFilterByMonth(!filterByMonth)}
+              className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
+                filterByMonth
+                  ? 'bg-teal-50 dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] border-[#2E7D7E]/30 dark:border-[#2dd4bf]/30 shadow-2xs'
+                  : 'bg-white dark:bg-[#13222f] text-[#64748B] dark:text-[#94A3B8] border-[#E3E8EE] dark:border-[#1c3345]'
+              }`}
+              title="Toggle date filter by month"
+            >
+              {filterByMonth ? 'Month Filter: ON' : 'Show All'}
+            </button>
+
+            {/* Month Navigation Pill */}
+            {filterByMonth && (
+              <div className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
+                <button
+                  type="button"
+                  onClick={prevMonth}
+                  className="p-1 hover:text-[#2E7D7E] dark:hover:text-[#2dd4bf] transition-colors"
+                  title="Previous Month"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                </button>
+                <span className="min-w-[110px] text-center select-none font-bold">{monthYearLabel}</span>
+                <button
+                  type="button"
+                  onClick={nextMonth}
+                  className="p-1 hover:text-[#2E7D7E] dark:hover:text-[#2dd4bf] transition-colors"
+                  title="Next Month"
+                >
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+                {!isCurrentMonthView && (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentDate(new Date())}
+                    className="ml-1 px-2 py-0.5 rounded-lg bg-teal-50 dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] text-[10px] font-bold hover:underline"
+                    title="Jump to current month"
+                  >
+                    Today
+                  </button>
+                )}
+              </div>
+            )}
 
             <button
               type="button"
@@ -262,14 +355,23 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
         {/* LEFT COLUMN: Scrollable Schedule Objects List */}
         <div className="md:col-span-7 xl:col-span-7 2xl:col-span-8 h-full overflow-y-auto custom-scrollbar pr-1.5 space-y-3.5">
           {filteredSchedules.length === 0 ? (
-            <div className="py-12 text-center text-[#8B9DA8] dark:text-[#859ba8] bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-8">
+            <div className="py-12 text-center text-[#8B9DA8] dark:text-[#859ba8] bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-8 space-y-2">
               <Calendar className="w-8 h-8 mx-auto text-[#2E7D7E]/50 mb-2" />
               <p className="text-xs font-semibold text-[#1E2837] dark:text-white">
-                {searchTerm ? 'No matching schedules found' : 'No active schedules created yet'}
+                {searchTerm ? 'No matching schedules found' : `No schedules scheduled for ${monthYearLabel}`}
               </p>
-              <p className="text-xs text-[#8B9DA8] mt-1">
-                {searchTerm ? 'Try a different search query.' : 'Click "Create Schedule" to assign times to your medications.'}
+              <p className="text-xs text-[#8B9DA8]">
+                {searchTerm ? 'Try a different search query.' : 'Use the arrows above to browse other months or click Create Schedule.'}
               </p>
+              {!isCurrentMonthView && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentDate(new Date())}
+                  className="mt-2 px-3 py-1.5 text-xs font-semibold text-[#2E7D7E] dark:text-[#2dd4bf] border border-[#2E7D7E]/30 dark:border-[#2dd4bf]/30 rounded-xl hover:bg-[#2E7D7E]/10 transition-all inline-flex items-center gap-1.5"
+                >
+                  <span>Jump to Current Month</span>
+                </button>
+              )}
             </div>
           ) : (
             filteredSchedules.map((sch) => {
@@ -718,6 +820,55 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
                 className="px-4 py-1.5 rounded-xl text-xs font-semibold bg-rose-600 hover:bg-rose-500 text-white shadow-sm"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Early Dose Confirmation Modal */}
+      {pendingDosePrompt && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm sm:max-w-md bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">
+                  Not Scheduled Time Yet
+                </h3>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 leading-relaxed">
+                  Are you sure you want to take <span className="font-bold text-[#1E2837] dark:text-white">{pendingDosePrompt.medName}</span>? It's not time yet.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#F8FAFC] dark:bg-[#172838] border border-[#E2E8F0] dark:border-[#1F364B] rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-[#475569] dark:text-[#94A3B8]">
+                <Clock className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                <span>Scheduled Time:</span>
+              </div>
+              <span className="font-bold text-[#1E2837] dark:text-white bg-white dark:bg-[#1E3347] px-2.5 py-0.5 rounded-lg border border-[#CBD5E1] dark:border-[#2A455C]">
+                {pendingDosePrompt.timeStr}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#E3E8EE] dark:border-[#1c3345]">
+              <button
+                type="button"
+                onClick={() => setPendingDosePrompt(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#64748B] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2D3E] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmTakeEarlyDose}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#2E7D7E] hover:bg-[#26696a] text-white shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Yes, Take Now</span>
               </button>
             </div>
           </div>

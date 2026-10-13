@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle, Repeat, Package } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, DashboardDataResponse, Schedule, HistoryLog, Medication } from '../types';
-import { formatTimeWithAmPm, sortSchedulesByDeadline } from '../utils/timeFormat';
+import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached } from '../utils/timeFormat';
 
 interface DashboardViewProps {
   user: User | null;
@@ -10,11 +10,18 @@ interface DashboardViewProps {
   onNavigate?: (tab: string) => void;
 }
 
+interface PendingDosePrompt {
+  medId: number;
+  medName: string;
+  timeStr: string;
+}
+
 export default function DashboardView({ user, onDataChange, onNavigate }: DashboardViewProps): React.JSX.Element {
   const [data, setData] = useState<DashboardDataResponse | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [pendingDosePrompt, setPendingDosePrompt] = useState<PendingDosePrompt | null>(null);
 
   const fetchDashboard = async () => {
     if (!user?.user_id) return;
@@ -46,13 +53,35 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
     fetchDashboard();
   }, [user]);
 
-  const handleTakeDose = async (medId: number) => {
+  const executeTakeDose = async (medId: number) => {
     if (!user?.user_id) return;
     const res = await callApi('take_dose', user.user_id, medId);
     if (res.success) {
       fetchDashboard();
       if (onDataChange) onDataChange();
     }
+  };
+
+  const handleTakeDose = (item: any, medName: string, timeStr: string) => {
+    const isTime = isScheduleTimeReached(item.time_value, item.schedule_date, item.start_date);
+    if (isTime) {
+      // It's time or past due: take immediately
+      executeTakeDose(item.med_id);
+    } else {
+      // Not time yet: ask for confirmation
+      setPendingDosePrompt({
+        medId: item.med_id,
+        medName,
+        timeStr,
+      });
+    }
+  };
+
+  const confirmTakeEarlyDose = () => {
+    if (!pendingDosePrompt) return;
+    const medId = pendingDosePrompt.medId;
+    setPendingDosePrompt(null);
+    executeTakeDose(medId);
   };
 
   const {
@@ -62,18 +91,28 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
     recent_history = []
   } = data || {};
 
-  // Compute stats for the 4 top cards
-  const totalDosesToday = schedules.length > 0 ? schedules.length : (due_meds.length + doses_taken);
-  const takenCount = doses_taken > 0 ? doses_taken : 0;
-  const upcomingCount = Math.max(0, due_meds.length > 0 ? due_meds.length : (totalDosesToday - takenCount));
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
   // Determine which schedules to show in "Today's Schedule" (Sorted with closest intake deadline first)
   const validSchedules = (schedules.length > 0 ? schedules : due_meds).filter((item) => {
     const matchingMed = medications.find((m) => m.med_id === item.med_id);
     const medName = item.med_name || (item as any).name || matchingMed?.name;
-    return Boolean(medName && medName.trim());
+    if (!medName || !medName.trim()) return false;
+
+    // Check if active today
+    const start = (item.start_date || item.schedule_date || '').trim();
+    const end = (item.end_date || '').trim();
+    if (start && start > todayStr) return false;
+    if (end && end < todayStr) return false;
+    return true;
   });
   const todayScheduleItems = sortSchedulesByDeadline(validSchedules);
+
+  // Compute stats for the 4 top cards
+  const totalDosesToday = validSchedules.length > 0 ? validSchedules.length : (due_meds.length + doses_taken);
+  const takenCount = doses_taken > 0 ? doses_taken : 0;
+  const upcomingCount = Math.max(0, due_meds.length > 0 ? due_meds.length : (totalDosesToday - takenCount));
 
   const colorPalettes = [
     { circle: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
@@ -84,66 +123,142 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
 
   return (
     <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200 gap-4 sm:gap-5">
-      {/* 1. TOP SECTION: 4 Summary Stat Cards (Fully Responsive Grid) */}
-      <div className="shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      {/* 1. TOP SECTION: 4 Summary Stat Cards matching reference design */}
+      <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {/* Card 1: Total Medications */}
-        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-teal-50 dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center shrink-0">
-            <Pill className="w-5 h-5 -rotate-45" />
+        <div
+          onClick={() => onNavigate && onNavigate('MedicationFrame')}
+          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+        >
+          {/* Bottom-right decorative curved wave accent */}
+          <svg
+            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#E0F2FE]/85 dark:text-[#0284C7]/15"
+            viewBox="0 0 180 40"
+            fill="none"
+            preserveAspectRatio="none"
+          >
+            <path d="M0 40 C60 40 100 15 180 2 L180 40 Z" fill="currentColor" />
+          </svg>
+
+          {/* Left: Circular Icon Avatar */}
+          <div className="w-12 h-12 rounded-full bg-[#E0F2FE] dark:bg-[#0c2a42] flex items-center justify-center shrink-0 z-1">
+            <Pill className="w-5 h-5 -rotate-45 text-[#0284C7] dark:text-[#38BDF8]" />
           </div>
-          <div className="min-w-0">
-            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+
+          {/* Center: Number & Label */}
+          <div className="min-w-0 flex-1 z-1">
+            <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {total_meds}
-            </span>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+            </h3>
+            <p className="text-xs font-semibold text-[#7C8F9F] dark:text-[#88A2B6] truncate mt-1">
               Total Medications
             </p>
           </div>
+
+          {/* Right: Sleek Arrow */}
+          <ArrowRight className="w-4 h-4 text-[#38BDF8] dark:text-[#38BDF8] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
         </div>
 
         {/* Card 2: Today's Doses */}
-        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
-            <Calendar className="w-5 h-5" />
+        <div
+          onClick={() => onNavigate && onNavigate('IntakeFrame')}
+          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+        >
+          {/* Bottom-right decorative curved wave accent */}
+          <svg
+            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#CCFBF1]/85 dark:text-[#0D9488]/15"
+            viewBox="0 0 180 40"
+            fill="none"
+            preserveAspectRatio="none"
+          >
+            <path d="M0 40 C60 40 100 15 180 2 L180 40 Z" fill="currentColor" />
+          </svg>
+
+          {/* Left: Circular Icon Avatar */}
+          <div className="w-12 h-12 rounded-full bg-[#CCFBF1] dark:bg-[#0c3332] flex items-center justify-center shrink-0 z-1">
+            <Calendar className="w-5 h-5 text-[#0D9488] dark:text-[#2DD4BF]" />
           </div>
-          <div className="min-w-0">
-            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+
+          {/* Center: Number & Label */}
+          <div className="min-w-0 flex-1 z-1">
+            <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {totalDosesToday}
-            </span>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+            </h3>
+            <p className="text-xs font-semibold text-[#7C8F9F] dark:text-[#88A2B6] truncate mt-1">
               Today's Doses
             </p>
           </div>
+
+          {/* Right: Sleek Arrow */}
+          <ArrowRight className="w-4 h-4 text-[#2DD4BF] dark:text-[#2DD4BF] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
         </div>
 
         {/* Card 3: Taken */}
-        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <Check className="w-5 h-5 stroke-[2.5]" />
+        <div
+          onClick={() => onNavigate && onNavigate('HistoryFrame')}
+          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+        >
+          {/* Bottom-right decorative curved wave accent */}
+          <svg
+            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#DCFCE7]/85 dark:text-[#16A34A]/15"
+            viewBox="0 0 180 40"
+            fill="none"
+            preserveAspectRatio="none"
+          >
+            <path d="M0 40 C60 40 100 15 180 2 L180 40 Z" fill="currentColor" />
+          </svg>
+
+          {/* Left: Circular Icon Avatar */}
+          <div className="w-12 h-12 rounded-full bg-[#DCFCE7] dark:bg-[#0e3522] flex items-center justify-center shrink-0 z-1">
+            <Check className="w-5 h-5 stroke-[2.5] text-[#16A34A] dark:text-[#4ADE80]" />
           </div>
-          <div className="min-w-0">
-            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+
+          {/* Center: Number & Label */}
+          <div className="min-w-0 flex-1 z-1">
+            <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {takenCount}
-            </span>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+            </h3>
+            <p className="text-xs font-semibold text-[#7C8F9F] dark:text-[#88A2B6] truncate mt-1">
               Taken
             </p>
           </div>
+
+          {/* Right: Sleek Arrow */}
+          <ArrowRight className="w-4 h-4 text-[#4ADE80] dark:text-[#4ADE80] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
         </div>
 
         {/* Card 4: Upcoming */}
-        <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-2xl bg-orange-50 dark:bg-orange-500/10 text-orange-500 dark:text-orange-400 flex items-center justify-center shrink-0">
-            <Clock className="w-5 h-5" />
+        <div
+          onClick={() => onNavigate && onNavigate('IntakeFrame')}
+          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+        >
+          {/* Bottom-right decorative curved wave accent */}
+          <svg
+            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#FEF3C7]/85 dark:text-[#D97706]/15"
+            viewBox="0 0 180 40"
+            fill="none"
+            preserveAspectRatio="none"
+          >
+            <path d="M0 40 C60 40 100 15 180 2 L180 40 Z" fill="currentColor" />
+          </svg>
+
+          {/* Left: Circular Icon Avatar */}
+          <div className="w-12 h-12 rounded-full bg-[#FEF3C7] dark:bg-[#382b0e] flex items-center justify-center shrink-0 z-1">
+            <Clock className="w-5 h-5 text-[#D97706] dark:text-[#FBBF24]" />
           </div>
-          <div className="min-w-0">
-            <span className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate block">
+
+          {/* Center: Number & Label */}
+          <div className="min-w-0 flex-1 z-1">
+            <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {upcomingCount}
-            </span>
-            <p className="text-[11px] text-[#8B9DA8] dark:text-[#859ba8] font-medium truncate">
+            </h3>
+            <p className="text-xs font-semibold text-[#7C8F9F] dark:text-[#88A2B6] truncate mt-1">
               Upcoming
             </p>
           </div>
+
+          {/* Right: Sleek Arrow */}
+          <ArrowRight className="w-4 h-4 text-[#FBBF24] dark:text-[#FBBF24] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
         </div>
       </div>
 
@@ -286,7 +401,7 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
 
                         <button
                           type="button"
-                          onClick={() => handleTakeDose(item.med_id)}
+                          onClick={() => handleTakeDose(item, medName, timeStr)}
                           title="Mark as Taken"
                           className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
                         >
@@ -382,6 +497,55 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
           </div>
         </div>
       </div>
+
+      {/* Early Dose Confirmation Modal */}
+      {pendingDosePrompt && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-sm sm:max-w-md bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-2xl space-y-4">
+            <div className="flex items-start gap-3.5">
+              <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <Clock className="w-5 h-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-bold text-sm text-[#1E2837] dark:text-white">
+                  Not Scheduled Time Yet
+                </h3>
+                <p className="text-xs text-[#64748B] dark:text-[#94A3B8] mt-1 leading-relaxed">
+                  Are you sure you want to take <span className="font-bold text-[#1E2837] dark:text-white">{pendingDosePrompt.medName}</span>? It's not time yet.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-[#F8FAFC] dark:bg-[#172838] border border-[#E2E8F0] dark:border-[#1F364B] rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-[#475569] dark:text-[#94A3B8]">
+                <Clock className="w-3.5 h-3.5 text-[#2E7D7E] dark:text-[#2dd4bf]" />
+                <span>Scheduled Time:</span>
+              </div>
+              <span className="font-bold text-[#1E2837] dark:text-white bg-white dark:bg-[#1E3347] px-2.5 py-0.5 rounded-lg border border-[#CBD5E1] dark:border-[#2A455C]">
+                {pendingDosePrompt.timeStr}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#E3E8EE] dark:border-[#1c3345]">
+              <button
+                type="button"
+                onClick={() => setPendingDosePrompt(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-[#64748B] hover:bg-[#F1F5F9] dark:hover:bg-[#1A2D3E] transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmTakeEarlyDose}
+                className="px-4 py-2 rounded-xl text-xs font-semibold bg-[#2E7D7E] hover:bg-[#26696a] text-white shadow-sm transition-all flex items-center gap-1.5"
+              >
+                <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                <span>Yes, Take Now</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -474,8 +474,8 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
                       <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch">
                         {/* Header Row: Title + Status Badge + 3-dots Menu */}
                         <div className="flex items-start justify-between gap-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-                            <h3 className="text-sm sm:text-base font-bold text-[#1E293B] dark:text-white truncate">
+                          <div className="flex flex-col items-start gap-1 min-w-0 flex-1">
+                            <h3 className="text-sm sm:text-base font-bold text-[#1E293B] dark:text-white truncate max-w-full">
                               {med.name}
                             </h3>
                             {/* Status Badge */}

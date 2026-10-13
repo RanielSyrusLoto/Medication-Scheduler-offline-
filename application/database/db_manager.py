@@ -184,6 +184,14 @@ class DatabaseManager:
             cursor.execute("UPDATE schedules SET time_value = '08:00', schedule_type = 'DAILY_TIME' WHERE time_value IN ('24', '12', '8', '4')")
             cursor.execute("UPDATE schedules SET time_value = '06:00', schedule_type = 'DAILY_TIME' WHERE time_value = '6'")
             cursor.execute("DELETE FROM schedules WHERE medication_id NOT IN (SELECT id FROM medications)")
+            cursor.execute("UPDATE schedules SET start_date = '2026-10-01', schedule_date = COALESCE(schedule_date, '2026-10-01') WHERE (start_date IS NULL OR start_date = '')")
+            cursor.execute("UPDATE schedules SET end_date = date(start_date, '+30 days') WHERE (end_date IS NULL OR end_date = '')")
+            cursor.execute("""
+                UPDATE medications 
+                SET start_date = (SELECT s.start_date FROM schedules s WHERE s.medication_id = medications.id LIMIT 1),
+                    end_date = (SELECT s.end_date FROM schedules s WHERE s.medication_id = medications.id LIMIT 1)
+                WHERE (start_date IS NULL OR start_date = '')
+            """)
         except Exception:
             pass
 

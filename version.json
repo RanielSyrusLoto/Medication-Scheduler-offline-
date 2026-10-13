@@ -1,7 +1,7 @@
 {
-  "version": "1.1.6",
-  "release_date": "2026-10-11",
-  "release_notes": "Version 1.1.6: Fixed non-scrollable layout for image and guidelines cards across Settings, Schedule, and My Medication views.",
+  "version": "1.1.7",
+  "release_date": "2026-10-13",
+  "release_notes": "Version 1.1.7: Fixed medication stock tag position below drug name, updated dashboard layout, early dose confirmation, and schedule start/end date range filtering.",
   "download_url": "https://raw.githubusercontent.com/vargas2006/Medication-Scheduler-offline-/main/SmartMedicationScheduler.zip",
   "mandatory": false
 }

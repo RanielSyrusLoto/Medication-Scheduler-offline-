@@ -147,3 +147,37 @@ export function sortSchedulesByDeadline<T extends {
   });
 }
 
+/**
+ * Checks if the scheduled dose time has arrived or passed for today.
+ * Returns true if it IS time to take (or already past due).
+ * Returns false if it is NOT YET time (scheduled for later today, or scheduled for a future date).
+ */
+export function isScheduleTimeReached(
+  timeValue?: string | null,
+  scheduleDate?: string | null,
+  startDate?: string | null
+): boolean {
+  if (!timeValue) return true;
+
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // If explicitly scheduled for a future calendar date (e.g. tomorrow or next week)
+  const explicitDate = (scheduleDate || '').trim();
+  if (explicitDate && explicitDate > todayStr) {
+    return false;
+  }
+
+  const start = (startDate || '').trim();
+  if (start && start > todayStr) {
+    return false;
+  }
+
+  const targetMinutes = parseTimeToMinutes(timeValue);
+  if (targetMinutes === 9999) return true;
+
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // If the scheduled time of day has arrived or passed:
+  return currentMinutes >= targetMinutes;
+}
