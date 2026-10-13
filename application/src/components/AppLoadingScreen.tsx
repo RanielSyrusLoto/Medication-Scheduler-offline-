@@ -36,8 +36,12 @@ export default function AppLoadingScreen({ onFinish }: AppLoadingScreenProps): R
       }`}
     >
       <div className="flex flex-col items-center">
-        <div className="w-14 h-14 rounded-2xl bg-[#2E7D7E] flex items-center justify-center text-white shadow-lg shadow-[#2E7D7E]/25 mb-4 animate-bounce">
-          <Pill className="w-7 h-7 -rotate-45" />
+        <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-teal-500/20 mb-4 animate-bounce">
+          <img
+            src="/app_icon.png"
+            alt="Smart Medication Scheduler"
+            className="w-full h-full object-contain"
+          />
         </div>
 
         <h1 className="text-base font-bold text-[#1E2837] dark:text-white tracking-tight">

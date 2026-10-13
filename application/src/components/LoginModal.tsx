@@ -179,9 +179,11 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
         <div className="p-8 sm:p-10 flex flex-col justify-center">
           {/* Logo & Header */}
           <div className="flex items-center gap-3.5 mb-7">
-            <div className="w-11 h-11 rounded-2xl bg-[#2E7D7E] flex items-center justify-center text-white shadow-md shadow-[#2E7D7E]/20 shrink-0">
-              <Pill className="w-6 h-6 -rotate-45" />
-            </div>
+            <img
+              src="/app_icon.png"
+              alt="Smart Medication Scheduler"
+              className="w-11 h-11 rounded-2xl object-contain shadow-md shadow-[#2E7D7E]/20 shrink-0"
+            />
             <div>
               <h2 className="text-base font-bold text-[#1E2837] dark:text-white leading-tight">
                 Smart Medication

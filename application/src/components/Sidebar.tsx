@@ -25,9 +25,11 @@ export default function Sidebar({ activeTab, setActiveTab, user, onLogout }: Sid
     <aside className="w-[240px] bg-white dark:bg-[#09121b] border-r border-[#E3E8EE] dark:border-[#1c3345] flex flex-col h-full shrink-0 select-none transition-colors duration-200">
       {/* Brand Header */}
       <div className="flex items-center gap-3 px-5 py-5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
-        <div className="w-9 h-9 rounded-xl bg-[#2E7D7E] flex items-center justify-center text-white shadow-sm shrink-0">
-          <Pill className="w-5 h-5 -rotate-45" />
-        </div>
+        <img
+          src="/app_icon.png"
+          alt="Smart Medication Scheduler"
+          className="w-9 h-9 rounded-xl object-contain shadow-xs shrink-0"
+        />
         <div className="flex flex-col min-w-0">
           <span className="font-bold text-[#1E2837] dark:text-white text-xs leading-tight">
             Smart Medication
