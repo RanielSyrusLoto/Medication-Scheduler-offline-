@@ -1,7 +1,7 @@
 {
-  "version": "1.1.7",
+  "version": "1.1.8",
   "release_date": "2026-10-13",
-  "release_notes": "Version 1.1.7: Fixed medication stock tag position below drug name, updated dashboard layout, early dose confirmation, and schedule start/end date range filtering.",
+  "release_notes": "Version 1.1.8: Updated official app icon, added interactive dose celebration modal with audio chime, keep-alive navigation caching, and asset cleanup.",
   "download_url": "https://raw.githubusercontent.com/vargas2006/Medication-Scheduler-offline-/main/SmartMedicationScheduler.zip",
   "mandatory": false
 }
