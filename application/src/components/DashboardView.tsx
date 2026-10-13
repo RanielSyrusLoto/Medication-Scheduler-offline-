@@ -387,10 +387,10 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                     </div>
 
                     {/* Top Row: Picture + Drug Name + Strength Badge + Prescription ID (Left) & Time Pill + Action / Status (Right) */}
-                    <div className="flex items-center justify-between gap-3 relative z-1">
-                      <div className="flex items-center gap-3 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 relative z-1">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1 overflow-hidden">
                         {/* Drug Picture Squircle Container matching reference */}
-                        <div className="w-12 h-12 min-w-[48px] min-h-[48px] max-w-[48px] max-h-[48px] aspect-square rounded-2xl overflow-hidden border border-[#bccddc] dark:border-[#2e4354] shrink-0 bg-white dark:bg-[#172838] p-0.5 flex items-center justify-center shadow-xs">
+                        <div className="w-10 h-10 min-w-[40px] min-h-[40px] max-w-[40px] max-h-[40px] sm:w-11 sm:h-11 sm:min-w-[44px] sm:min-h-[44px] sm:max-w-[44px] sm:max-h-[44px] aspect-square rounded-2xl overflow-hidden border border-[#bccddc] dark:border-[#2e4354] shrink-0 bg-white dark:bg-[#172838] p-0.5 flex items-center justify-center shadow-xs">
                           <img
                             src={imgSrc}
                             alt={medName}
@@ -398,28 +398,28 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                               (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
                             }}
                             className="w-full h-full object-cover rounded-xl"
-                            style={{ width: '44px', height: '44px' }}
+                            style={{ width: '40px', height: '40px' }}
                           />
                         </div>
 
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-base font-extrabold text-[#112338] dark:text-white truncate tracking-tight">
+                        <div className="min-w-0 flex-1 overflow-hidden">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <h4 className="text-sm sm:text-base font-extrabold text-[#112338] dark:text-white truncate tracking-tight">
                               {medName}
                             </h4>
-                            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full border border-[#bcd6ed] dark:border-[#2c5375] text-[#1b6194] dark:text-[#88bfe8] bg-[#e3eef8] dark:bg-[#1b344e] shrink-0">
+                            <span className="text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full border border-[#bcd6ed] dark:border-[#2c5375] text-[#1b6194] dark:text-[#88bfe8] bg-[#e3eef8] dark:bg-[#1b344e] shrink-0">
                               {strength}
                             </span>
                           </div>
-                          <span className="text-xs text-[#5e788e] dark:text-[#8ea5b6] block mt-0.5 font-medium">
+                          <span className="text-[10px] sm:text-xs text-[#5e788e] dark:text-[#8ea5b6] block mt-0.5 font-medium truncate">
                             Prescription ID #{prescriptionId}
                           </span>
                         </div>
                       </div>
 
                       {/* Right: Scheduled Time Pill & Check Mark Button or Status Badge */}
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#172838] border border-[#c0d2e0] dark:border-[#2a3f52] text-xs font-semibold text-[#14324f] dark:text-white shadow-2xs">
+                      <div className="flex items-center gap-1.5 shrink-0 self-start sm:self-center ml-auto">
+                        <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-white/95 dark:bg-[#172838] border border-[#c0d2e0] dark:border-[#2a3f52] text-xs font-semibold text-[#14324f] dark:text-white shadow-2xs whitespace-nowrap">
                           {isAm ? (
                             <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                           ) : (
@@ -429,19 +429,27 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                         </div>
 
                         {todayStatus === 'TAKEN' ? (
-                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs shrink-0">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                          <div className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs shrink-0 whitespace-nowrap">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             <span>Taken</span>
                           </div>
                         ) : (
-                          <button
-                            type="button"
-                            onClick={() => handleTakeDose(item, medName, timeStr)}
-                            title={todayStatus === 'MISSED' ? "Take Missed Dose" : "Mark as Taken"}
-                            className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
-                          >
-                            <Check className="w-4 h-4 stroke-[2.5]" />
-                          </button>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {todayStatus === 'MISSED' && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 text-[11px] font-bold text-rose-600 dark:text-rose-400 shadow-2xs whitespace-nowrap">
+                                <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+                                <span>Missed</span>
+                              </span>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleTakeDose(item, medName, timeStr)}
+                              title={todayStatus === 'MISSED' ? "Take Missed Dose" : "Mark as Taken"}
+                              className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
+                            >
+                              <Check className="w-4 h-4 stroke-[2.5]" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
