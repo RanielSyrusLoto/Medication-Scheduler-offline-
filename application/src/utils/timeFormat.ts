@@ -181,3 +181,19 @@ export function isScheduleTimeReached(
   // If the scheduled time of day has arrived or passed:
   return currentMinutes >= targetMinutes;
 }
+
+/**
+ * Returns true if the time is AM (morning/daytime), false if PM (afternoon/night).
+ */
+export function isAmTime(timeStr?: string | null): boolean {
+  if (!timeStr) return true;
+  const upper = timeStr.toUpperCase();
+  if (upper.includes('AM')) return true;
+  if (upper.includes('PM')) return false;
+
+  const minutes = parseTimeToMinutes(timeStr);
+  if (minutes !== 9999) {
+    return minutes < 12 * 60; // 00:00 to 11:59 is AM
+  }
+  return true;
+}

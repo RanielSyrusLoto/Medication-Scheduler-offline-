@@ -190,6 +190,7 @@ export default function HistoryView({ user, refreshKey }: HistoryViewProps): Rea
               ) : (
                 filteredHistory.map((log) => {
                   const isTaken = log.status === 'TAKEN';
+                  const isMissed = log.status === 'MISSED';
                   return (
                     <tr
                       key={log.log_id}
@@ -209,6 +210,8 @@ export default function HistoryView({ user, refreshKey }: HistoryViewProps): Rea
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
                             isTaken
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30'
+                              : isMissed
+                              ? 'bg-rose-50 text-rose-700 border border-rose-200 dark:bg-rose-500/15 dark:text-rose-400 dark:border-rose-500/30'
                               : 'bg-sky-50 text-sky-700 border border-sky-200 dark:bg-sky-500/15 dark:text-sky-400 dark:border-sky-500/30'
                           }`}
                         >
@@ -216,6 +219,11 @@ export default function HistoryView({ user, refreshKey }: HistoryViewProps): Rea
                             <>
                               <Check className="w-3 h-3 stroke-[2.5]" />
                               <span>Taken</span>
+                            </>
+                          ) : isMissed ? (
+                            <>
+                              <AlertCircle className="w-3 h-3" />
+                              <span>Missed</span>
                             </>
                           ) : (
                             <>

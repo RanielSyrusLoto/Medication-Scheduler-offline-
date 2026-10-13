@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, X, Pill, Clock, Check, Droplet } from 'lucide-react';
+import { Bell, X, Pill, Clock, Check, Droplet, Sun, Moon } from 'lucide-react';
 import AppLoadingScreen from './components/AppLoadingScreen';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -13,7 +13,7 @@ import SettingsView from './components/SettingsView';
 import DoseSuccessModal, { DoseSuccessData } from './components/DoseSuccessModal';
 import { callApi } from './utils/pywebview';
 import { User, DueAlert } from './types';
-import { formatTimeWithAmPm } from './utils/timeFormat';
+import { formatTimeWithAmPm, isAmTime } from './utils/timeFormat';
 
 export default function App(): React.JSX.Element {
   const [appLoading, setAppLoading] = useState<boolean>(true);
@@ -256,7 +256,11 @@ export default function App(): React.JSX.Element {
                   </div>
 
                   <div className="flex items-center gap-1.5 text-xs text-[#2E7D7E] dark:text-[#2dd4bf] font-semibold shrink-0">
-                    <Clock className="w-3.5 h-3.5" />
+                    {isAmTime(m.time_value) ? (
+                      <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                    ) : (
+                      <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                    )}
                     <span>{formatTimeWithAmPm(m.time_value) || 'Today'}</span>
                   </div>
                 </div>

@@ -395,11 +395,20 @@ class NotificationWorker:
         except Exception as e:
             print(f"[NotificationWorker] Error checking due medications: {e}")
 
+    def _check_missed_doses(self):
+        try:
+            from models.history import ReportGenerator
+            report_gen = ReportGenerator()
+            report_gen.check_and_log_missed_doses()
+        except Exception as e:
+            print(f"[NotificationWorker] Error checking missed doses: {e}")
+
     def _run_loop(self):
         while self.running:
             try:
                 self._check_offline_popups()
                 self._check_due_medications()
+                self._check_missed_doses()
                 self._process_gmail_queue()
             except Exception as e:
                 print(f"[NotificationWorker] Exception in background loop: {e}")

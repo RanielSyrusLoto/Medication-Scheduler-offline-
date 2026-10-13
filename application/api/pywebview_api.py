@@ -98,6 +98,7 @@ class PythonAPI:
     def get_dashboard_data(self, user_id):
         try:
             user_id = int(user_id)
+            self.report_generator.check_and_log_missed_doses(user_id)
             meds = self.inventory_manager.get_user_medications(user_id)
             due_meds = self.dose_alert.get_due_medications(user_id)
             history = self.report_generator.get_user_history(user_id)
@@ -105,6 +106,13 @@ class PythonAPI:
             total_meds = len(meds)
             low_stock = sum(1 for m in meds if m.is_low_stock())
             doses_taken = len([h for h in history if h.status == 'TAKEN'])
+
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            today_logs_rows = self.db.fetch_all("""
+                SELECT medication_id, status FROM intake_log
+                WHERE user_id = ? AND date(timestamp) = ?
+            """, (user_id, today_str))
+            today_logs = [{"med_id": r[0], "status": r[1]} for r in today_logs_rows]
 
             weekly_counts = [0] * 7
             for log in history:
@@ -138,7 +146,8 @@ class PythonAPI:
                 "adherence_rate": adherence_rate,
                 "weekly_counts": weekly_counts,
                 "due_meds": due_meds,
-                "recent_history": recent_history
+                "recent_history": recent_history,
+                "today_logs": today_logs
             }
         except Exception as e:
             return {"success": False, "error": str(e)}
@@ -206,7 +215,22 @@ class PythonAPI:
             med_id = int(med_id)
             amt = int(amount) if amount else 1
             self.inventory_manager.deduct_stock(med_id, amt)
-            self.report_generator.log_intake(user_id, med_id, "TAKEN")
+
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            # If an existing MISSED log exists today for this medication, upgrade it to TAKEN
+            missed_log = self.db.fetch_one("""
+                SELECT id FROM intake_log
+                WHERE user_id = ? AND medication_id = ? AND status = 'MISSED' AND date(timestamp) = ?
+            """, (user_id, med_id, today_str))
+
+            if missed_log:
+                now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                self.db.execute_query("""
+                    UPDATE intake_log SET status = 'TAKEN', timestamp = ? WHERE id = ?
+                """, (now_ts, missed_log[0]))
+            else:
+                self.report_generator.log_intake(user_id, med_id, "TAKEN")
+
             return {"success": True, "message": "Dose logged as TAKEN."}
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -225,7 +249,16 @@ class PythonAPI:
     def get_schedules(self, user_id):
         try:
             user_id = int(user_id)
+            self.report_generator.check_and_log_missed_doses(user_id)
             schedules = self.dose_alert.get_user_schedules(user_id)
+
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            today_logs_rows = self.db.fetch_all("""
+                SELECT medication_id, status FROM intake_log
+                WHERE user_id = ? AND date(timestamp) = ?
+            """, (user_id, today_str))
+            status_map = {r[0]: r[1] for r in today_logs_rows}
+
             result = []
             for s in schedules:
                 result.append({
@@ -244,7 +277,8 @@ class PythonAPI:
                     "status": s.status,
                     "stock": s.stock,
                     "stock_unit": s.stock_unit,
-                    "image_path": getattr(s, 'image_path', None)
+                    "image_path": getattr(s, 'image_path', None),
+                    "today_status": status_map.get(s.med_id, None)
                 })
             return {"success": True, "schedules": result}
         except Exception as e:
@@ -261,6 +295,7 @@ class PythonAPI:
     def get_history(self, user_id):
         try:
             user_id = int(user_id)
+            self.report_generator.check_and_log_missed_doses(user_id)
             history = self.report_generator.get_user_history(user_id)
             logs = [
                 {

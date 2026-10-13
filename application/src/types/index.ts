@@ -40,6 +40,7 @@ export interface Schedule {
   status?: string;
   schedule_date?: string;
   image_path?: string | null;
+  today_status?: string | null;
 }
 
 export interface HistoryLog {
@@ -72,6 +73,7 @@ export interface DashboardDataResponse {
   weekly_counts?: number[];
   due_meds?: Schedule[];
   recent_history?: HistoryLog[];
+  today_logs?: { med_id: number; status: string }[];
   message?: string;
   error?: string;
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle, Repeat, Package } from 'lucide-react';
+import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2, AlertCircle, Repeat, Package, Sun, Moon } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, DashboardDataResponse, Schedule, HistoryLog, Medication } from '../types';
-import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached } from '../utils/timeFormat';
+import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached, isAmTime } from '../utils/timeFormat';
 
 interface DashboardViewProps {
   user: User | null;
@@ -356,6 +356,9 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                 };
 
                 const imgSrc = resolveMedImage();
+                const isAm = isAmTime(item.time_value || timeStr);
+                const todayLog = (data?.today_logs || []).find((l) => l.med_id === item.med_id);
+                const todayStatus = item.today_status || todayLog?.status;
 
                 return (
                   <div
@@ -383,7 +386,7 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                       </svg>
                     </div>
 
-                    {/* Top Row: Picture + Drug Name + Strength Badge + Prescription ID (Left) & Time Pill + Check Button (Right) */}
+                    {/* Top Row: Picture + Drug Name + Strength Badge + Prescription ID (Left) & Time Pill + Action / Status (Right) */}
                     <div className="flex items-center justify-between gap-3 relative z-1">
                       <div className="flex items-center gap-3 min-w-0">
                         {/* Drug Picture Squircle Container matching reference */}
@@ -414,21 +417,48 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                         </div>
                       </div>
 
-                      {/* Right: Scheduled Time Pill & Check Mark Button (Mark as Taken) */}
+                      {/* Right: Scheduled Time Pill & Check Mark Button or Status Badge */}
                       <div className="flex items-center gap-2 shrink-0">
                         <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/95 dark:bg-[#172838] border border-[#c0d2e0] dark:border-[#2a3f52] text-xs font-semibold text-[#14324f] dark:text-white shadow-2xs">
-                          <Clock className="w-3.5 h-3.5 text-[#14324f] dark:text-[#2dd4bf]" />
+                          {isAm ? (
+                            <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                          ) : (
+                            <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
+                          )}
                           <span>{timeStr}</span>
                         </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleTakeDose(item, medName, timeStr)}
-                          title="Mark as Taken"
-                          className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
-                        >
-                          <Check className="w-4 h-4 stroke-[2.5]" />
-                        </button>
+                        {todayStatus === 'TAKEN' ? (
+                          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700/60 text-xs font-bold text-emerald-700 dark:text-emerald-300 shadow-2xs shrink-0">
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                            <span>Taken</span>
+                          </div>
+                        ) : todayStatus === 'MISSED' ? (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-700/60 text-xs font-bold text-rose-700 dark:text-rose-300 shadow-2xs">
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                              <span>Missed</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleTakeDose(item, medName, timeStr)}
+                              title="Take Late Dose"
+                              className="h-8 px-2.5 rounded-full border border-rose-300 dark:border-rose-700 hover:bg-rose-600 hover:text-white text-rose-700 dark:text-rose-300 flex items-center gap-1 text-xs font-semibold transition-all shadow-xs bg-white/95 dark:bg-transparent"
+                            >
+                              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                              <span>Take Late</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleTakeDose(item, medName, timeStr)}
+                            title="Mark as Taken"
+                            className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
+                          >
+                            <Check className="w-4 h-4 stroke-[2.5]" />
+                          </button>
+                        )}
                       </div>
                     </div>
 

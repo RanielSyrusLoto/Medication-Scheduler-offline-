@@ -38,7 +38,7 @@ class ReportGenerator:
                        l.timestamp, l.status 
                 FROM intake_log l
                 LEFT JOIN medications m ON l.medication_id = m.id
-                WHERE l.user_id = ? AND l.status = 'TAKEN'
+                WHERE l.user_id = ?
                 ORDER BY l.timestamp DESC
             '''
             rows = self.db.fetch_all(query, (user_id,))
@@ -49,7 +49,6 @@ class ReportGenerator:
                        l.timestamp, l.status 
                 FROM intake_log l
                 LEFT JOIN medications m ON l.medication_id = m.id
-                WHERE l.status = 'TAKEN'
                 ORDER BY l.timestamp DESC
             '''
             rows = self.db.fetch_all(query)
@@ -63,3 +62,75 @@ class ReportGenerator:
             for log in history:
                 writer.writerow([log.log_id, log.med_name, log.timestamp, log.status])
         return True
+
+    def check_and_log_missed_doses(self, user_id=None):
+        """
+        Auto-logs 'MISSED' intake records for any active scheduled doses whose time
+        has passed today (or over recent active dates) without being taken or already logged.
+        """
+        try:
+            from datetime import timedelta
+            now = datetime.now()
+            today_str = now.strftime("%Y-%m-%d")
+            now_time_str = now.strftime("%H:%M")
+
+            user_filter = "WHERE m.user_id = ?" if user_id is not None else ""
+            params = (user_id,) if user_id is not None else ()
+
+            # Query all active schedules
+            query = f'''
+                SELECT s.id, s.medication_id, m.name, s.time_value, s.start_date, s.end_date, s.schedule_date, m.user_id
+                FROM schedules s
+                JOIN medications m ON s.medication_id = m.id
+                {user_filter}
+            '''
+            schedules = self.db.fetch_all(query, params)
+            if not schedules:
+                return 0
+
+            logged_count = 0
+
+            # Check today and the past 2 days (up to 3 days back)
+            for day_offset in range(3):
+                target_date = (now - timedelta(days=day_offset)).date()
+                target_date_str = target_date.strftime("%Y-%m-%d")
+                is_today = (day_offset == 0)
+
+                for sched_id, med_id, med_name, time_value, start_date, end_date, sched_date, uid in schedules:
+                    start = (start_date or sched_date or '').strip()
+                    end = (end_date or '').strip()
+
+                    # Check if schedule was active on target_date
+                    if start and start > target_date_str:
+                        continue
+                    if end and end < target_date_str:
+                        continue
+
+                    # Extract schedule time e.g. "08:00"
+                    raw_time = str(time_value).strip()[:5]
+                    if not raw_time or len(raw_time) < 4:
+                        raw_time = "08:00"
+
+                    # If checking today, only consider missed if scheduled time has passed
+                    if is_today and raw_time > now_time_str:
+                        continue
+
+                    # Check if an intake was already logged on target_date for this user and med
+                    existing = self.db.fetch_one('''
+                        SELECT id, status FROM intake_log
+                        WHERE user_id = ? AND medication_id = ? AND date(timestamp) = ?
+                    ''', (uid, med_id, target_date_str))
+
+                    if not existing:
+                        missed_ts = f"{target_date_str} {raw_time}:00"
+                        self.db.execute_query('''
+                            INSERT INTO intake_log (user_id, medication_id, medication_name, timestamp, status)
+                            VALUES (?, ?, ?, ?, 'MISSED')
+                        ''', (uid, med_id, med_name or "Medication", missed_ts))
+                        logged_count += 1
+
+            return logged_count
+        except Exception as e:
+            print(f"[ReportGenerator] Note checking missed doses: {e}")
+            return 0
+
