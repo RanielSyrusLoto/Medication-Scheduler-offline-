@@ -5,9 +5,10 @@ import { User, DashboardDataResponse, HistoryLog } from '../types';
 
 interface ReportsViewProps {
   user: User | null;
+  refreshKey?: number;
 }
 
-export default function ReportsView({ user }: ReportsViewProps): React.JSX.Element {
+export default function ReportsView({ user, refreshKey }: ReportsViewProps): React.JSX.Element {
   const [data, setData] = useState<DashboardDataResponse | null>(null);
   const [history, setHistory] = useState<HistoryLog[]>([]);
   const [exportMsg, setExportMsg] = useState<string>('');
@@ -36,7 +37,7 @@ export default function ReportsView({ user }: ReportsViewProps): React.JSX.Eleme
 
   useEffect(() => {
     fetchReportsData();
-  }, [user]);
+  }, [user, refreshKey]);
 
   const handleExportCSV = async () => {
     if (!user?.user_id) return;

@@ -7,6 +7,7 @@ import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached } fr
 interface IntakeViewProps {
   user: User | null;
   onDataChange?: () => void;
+  refreshKey?: number;
 }
 
 interface FormMessage {
@@ -34,7 +35,7 @@ function formatDateDisplay(dateStr?: string | null): { dateFormatted: string; da
   }
 }
 
-export default function IntakeView({ user, onDataChange }: IntakeViewProps): React.JSX.Element {
+export default function IntakeView({ user, onDataChange, refreshKey }: IntakeViewProps): React.JSX.Element {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -93,7 +94,7 @@ export default function IntakeView({ user, onDataChange }: IntakeViewProps): Rea
 
   useEffect(() => {
     fetchSchedulesAndMeds();
-  }, [user]);
+  }, [user, refreshKey]);
 
   const executeTakeDose = async (sch: Schedule) => {
     if (!user?.user_id) return;

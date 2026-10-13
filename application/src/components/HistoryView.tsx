@@ -6,11 +6,12 @@ import { formatTimeWithAmPm } from '../utils/timeFormat';
 
 interface HistoryViewProps {
   user: User | null;
+  refreshKey?: number;
 }
 
 type DateFilterType = 'ALL' | 'TODAY' | 'YESTERDAY' | 'THIS_WEEK' | 'THIS_MONTH' | 'CUSTOM';
 
-export default function HistoryView({ user }: HistoryViewProps): React.JSX.Element {
+export default function HistoryView({ user, refreshKey }: HistoryViewProps): React.JSX.Element {
   const [history, setHistory] = useState<HistoryLog[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [exportMsg, setExportMsg] = useState<string>('');
@@ -43,7 +44,7 @@ export default function HistoryView({ user }: HistoryViewProps): React.JSX.Eleme
 
   useEffect(() => {
     fetchHistory();
-  }, [user]);
+  }, [user, refreshKey]);
 
   const handleExportCSV = async () => {
     if (!user?.user_id) return;

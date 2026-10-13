@@ -24,6 +24,7 @@ import { User, Medication } from '../types';
 interface MedicationsViewProps {
   user: User | null;
   onDataChange?: () => void;
+  refreshKey?: number;
 }
 
 interface StatusMsg {
@@ -33,7 +34,7 @@ interface StatusMsg {
 
 type StockFilterType = 'ALL' | 'IN_STOCK' | 'LOW_STOCK';
 
-export default function MedicationsView({ user, onDataChange }: MedicationsViewProps): React.JSX.Element {
+export default function MedicationsView({ user, onDataChange, refreshKey }: MedicationsViewProps): React.JSX.Element {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -80,7 +81,7 @@ export default function MedicationsView({ user, onDataChange }: MedicationsViewP
 
   useEffect(() => {
     fetchMeds();
-  }, [user]);
+  }, [user, refreshKey]);
 
   // Close card action menu when clicking outside
   useEffect(() => {

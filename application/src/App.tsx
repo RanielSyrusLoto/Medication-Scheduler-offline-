@@ -80,14 +80,30 @@ export default function App(): React.JSX.Element {
     checkAutoLogin();
   }, []);
 
+  // Track visited tabs to keep them mounted once visited (Keep-Alive pattern)
+  const [visitedTabs, setVisitedTabs] = useState<Set<string>>(() => new Set(['DashboardFrame']));
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev;
+      const updated = new Set(prev);
+      updated.add(activeTab);
+      return updated;
+    });
+  }, [activeTab]);
+
   const handleLogout = async () => {
     localStorage.removeItem('med_user_session');
     await callApi('logout');
     setUser(null);
+    setVisitedTabs(new Set(['DashboardFrame']));
+    setActiveTab('DashboardFrame');
   };
 
   const handleLoginSuccess = async (u: User) => {
     setUser(u);
+    setVisitedTabs(new Set(['DashboardFrame']));
+    setActiveTab('DashboardFrame');
     try {
       await callApi('set_active_user', u.user_id);
     } catch (e) {
@@ -120,47 +136,59 @@ export default function App(): React.JSX.Element {
         <Header activeTab={activeTab} user={user} theme={theme} onToggleTheme={handleToggleTheme} />
 
         <main className="flex-1 overflow-hidden relative">
-          {activeTab === 'DashboardFrame' && (
-            <DashboardView
-              key={`dash-${dataRefreshKey}`}
-              user={user}
-              onDataChange={handleDataChange}
-              onNavigate={setActiveTab}
-            />
+          {visitedTabs.has('DashboardFrame') && (
+            <div className={`h-full w-full ${activeTab === 'DashboardFrame' ? 'block' : 'hidden'}`}>
+              <DashboardView
+                user={user}
+                onDataChange={handleDataChange}
+                onNavigate={setActiveTab}
+                refreshKey={dataRefreshKey}
+              />
+            </div>
           )}
-          {activeTab === 'MedicationFrame' && (
-            <MedicationsView
-              key={`meds-${dataRefreshKey}`}
-              user={user}
-              onDataChange={handleDataChange}
-            />
+          {visitedTabs.has('MedicationFrame') && (
+            <div className={`h-full w-full ${activeTab === 'MedicationFrame' ? 'block' : 'hidden'}`}>
+              <MedicationsView
+                user={user}
+                onDataChange={handleDataChange}
+                refreshKey={dataRefreshKey}
+              />
+            </div>
           )}
-          {activeTab === 'IntakeFrame' && (
-            <IntakeView
-              key={`intake-${dataRefreshKey}`}
-              user={user}
-              onDataChange={handleDataChange}
-            />
+          {visitedTabs.has('IntakeFrame') && (
+            <div className={`h-full w-full ${activeTab === 'IntakeFrame' ? 'block' : 'hidden'}`}>
+              <IntakeView
+                user={user}
+                onDataChange={handleDataChange}
+                refreshKey={dataRefreshKey}
+              />
+            </div>
           )}
-          {activeTab === 'HistoryFrame' && (
-            <HistoryView
-              key={`hist-${dataRefreshKey}`}
-              user={user}
-            />
+          {visitedTabs.has('HistoryFrame') && (
+            <div className={`h-full w-full ${activeTab === 'HistoryFrame' ? 'block' : 'hidden'}`}>
+              <HistoryView
+                user={user}
+                refreshKey={dataRefreshKey}
+              />
+            </div>
           )}
-          {activeTab === 'ReportsFrame' && (
-            <ReportsView
-              key={`reports-${dataRefreshKey}`}
-              user={user}
-            />
+          {visitedTabs.has('ReportsFrame') && (
+            <div className={`h-full w-full ${activeTab === 'ReportsFrame' ? 'block' : 'hidden'}`}>
+              <ReportsView
+                user={user}
+                refreshKey={dataRefreshKey}
+              />
+            </div>
           )}
-          {activeTab === 'SettingsFrame' && (
-            <SettingsView
-              user={user}
-              theme={theme}
-              onToggleTheme={handleToggleTheme}
-              onLogout={handleLogout}
-            />
+          {visitedTabs.has('SettingsFrame') && (
+            <div className={`h-full w-full ${activeTab === 'SettingsFrame' ? 'block' : 'hidden'}`}>
+              <SettingsView
+                user={user}
+                theme={theme}
+                onToggleTheme={handleToggleTheme}
+                onLogout={handleLogout}
+              />
+            </div>
           )}
         </main>
       </div>

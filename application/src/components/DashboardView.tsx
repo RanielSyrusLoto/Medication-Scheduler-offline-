@@ -8,6 +8,7 @@ interface DashboardViewProps {
   user: User | null;
   onDataChange?: () => void;
   onNavigate?: (tab: string) => void;
+  refreshKey?: number;
 }
 
 interface PendingDosePrompt {
@@ -16,7 +17,7 @@ interface PendingDosePrompt {
   timeStr: string;
 }
 
-export default function DashboardView({ user, onDataChange, onNavigate }: DashboardViewProps): React.JSX.Element {
+export default function DashboardView({ user, onDataChange, onNavigate, refreshKey }: DashboardViewProps): React.JSX.Element {
   const [data, setData] = useState<DashboardDataResponse | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -51,7 +52,7 @@ export default function DashboardView({ user, onDataChange, onNavigate }: Dashbo
 
   useEffect(() => {
     fetchDashboard();
-  }, [user]);
+  }, [user, refreshKey]);
 
   const executeTakeDose = async (medId: number) => {
     if (!user?.user_id) return;
