@@ -482,13 +482,19 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
                         </div>
 
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h4 className="text-xs sm:text-sm font-bold text-[#1E2837] dark:text-white">
                               {sch.med_name}
                             </h4>
                             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-white/60 dark:bg-white/10 text-[#245878] dark:text-[#9bc2db] border border-[#a8b8c4]/60 dark:border-[#385166]">
                               {sch.strength || sch.dosage || 'Standard'}
                             </span>
+                            {sch.today_status === 'MISSED' && (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[10px] font-bold shadow-2xs whitespace-nowrap">
+                                <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
+                                <span>Missed</span>
+                              </span>
+                            )}
                           </div>
                           <span className="text-[10px] text-[#6b8293] dark:text-[#8ea5b6] font-medium block mt-0.5">
                             Prescription ID #{sch.med_id}
@@ -496,23 +502,14 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
                         </div>
                       </div>
 
-                      {/* Scheduled Time Pill & Missed Status Badge */}
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/70 dark:bg-[#172838] border border-[#a8b8c4]/70 dark:border-[#2a3f52] text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs whitespace-nowrap">
-                          {isAm ? (
-                            <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                          ) : (
-                            <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
-                          )}
-                          <span>{formatTimeWithAmPm(sch.time_value)}</span>
-                        </div>
-
-                        {sch.today_status === 'MISSED' && (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-[11px] font-bold shadow-2xs whitespace-nowrap">
-                            <AlertCircle className="w-3 h-3 text-rose-500 shrink-0" />
-                            <span>Missed</span>
-                          </span>
+                      {/* Scheduled Time Pill: ALWAYS in the EXACT SAME POSITION across all cards! */}
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/70 dark:bg-[#172838] border border-[#a8b8c4]/70 dark:border-[#2a3f52] text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs whitespace-nowrap shrink-0">
+                        {isAm ? (
+                          <Sun className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        ) : (
+                          <Moon className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400 shrink-0" />
                         )}
+                        <span>{formatTimeWithAmPm(sch.time_value)}</span>
                       </div>
                     </div>
 
