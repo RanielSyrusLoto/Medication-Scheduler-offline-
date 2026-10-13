@@ -433,27 +433,11 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                             <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             <span>Taken</span>
                           </div>
-                        ) : todayStatus === 'MISSED' ? (
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-700/60 text-xs font-bold text-rose-700 dark:text-rose-300 shadow-2xs">
-                              <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                              <span>Missed</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleTakeDose(item, medName, timeStr)}
-                              title="Take Late Dose"
-                              className="h-8 px-2.5 rounded-full border border-rose-300 dark:border-rose-700 hover:bg-rose-600 hover:text-white text-rose-700 dark:text-rose-300 flex items-center gap-1 text-xs font-semibold transition-all shadow-xs bg-white/95 dark:bg-transparent"
-                            >
-                              <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-                              <span>Take Late</span>
-                            </button>
-                          </div>
                         ) : (
                           <button
                             type="button"
                             onClick={() => handleTakeDose(item, medName, timeStr)}
-                            title="Mark as Taken"
+                            title={todayStatus === 'MISSED' ? "Take Missed Dose" : "Mark as Taken"}
                             className="w-8 h-8 rounded-full border-2 border-[#2E7D7E] dark:border-[#2dd4bf] hover:bg-[#2E7D7E] dark:hover:bg-[#2dd4bf] hover:text-white text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center transition-all shadow-xs shrink-0 bg-white/95 dark:bg-transparent"
                           >
                             <Check className="w-4 h-4 stroke-[2.5]" />

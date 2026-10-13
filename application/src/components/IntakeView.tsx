@@ -557,28 +557,12 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                           <span>Taken</span>
                         </div>
-                      ) : sch.today_status === 'MISSED' ? (
-                        <div className="flex items-center gap-1">
-                          <div className="px-2 py-1 rounded-xl bg-rose-100 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-700/60 text-rose-700 dark:text-rose-300 text-xs font-bold shadow-xs flex items-center gap-1">
-                            <AlertCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
-                            <span>Missed</span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleTakeDose(sch)}
-                            className="px-2.5 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all"
-                            title="Take Late Dose"
-                          >
-                            <Check className="w-3 h-3 stroke-[2.5]" />
-                            <span>Take Late</span>
-                          </button>
-                        </div>
                       ) : (
                         <button
                           type="button"
                           onClick={() => handleTakeDose(sch)}
                           className="px-2.5 py-1.5 rounded-xl bg-[#2E7D7E] hover:bg-[#26696a] text-white text-xs font-semibold shadow-xs flex items-center gap-1 transition-all"
-                          title="Mark as Taken"
+                          title={sch.today_status === 'MISSED' ? "Take Missed Dose" : "Mark as Taken"}
                         >
                           <Check className="w-3 h-3 stroke-[2.5]" />
                           <span>Take Dose</span>
