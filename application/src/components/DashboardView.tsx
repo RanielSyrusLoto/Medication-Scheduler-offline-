@@ -58,6 +58,27 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
     if (!user?.user_id) return;
     const res = await callApi('take_dose', user.user_id, medId);
     if (res.success) {
+      const med = medications.find((m) => m.med_id === medId);
+      const sch = schedules.find((s) => s.med_id === medId);
+      const medName = med?.name || sch?.med_name || 'Medication';
+      const dosage = sch ? `${sch.dose_per_intake || 1} ${sch.dose_unit || 'tablet'}` : (med?.dosage_form || '1 tablet');
+      const remaining = med ? Math.max(0, med.stock - (sch?.dose_per_intake ? Number(sch.dose_per_intake) : 1)) : undefined;
+
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      window.dispatchEvent(
+        new CustomEvent('dose-taken-success', {
+          detail: {
+            medName,
+            dosage,
+            timeTaken: formatTimeWithAmPm(timeStr),
+            remainingStock: remaining,
+            stockUnit: med?.stock_unit || 'tablets'
+          }
+        })
+      );
+
       fetchDashboard();
       if (onDataChange) onDataChange();
     }

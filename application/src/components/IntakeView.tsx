@@ -102,6 +102,26 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
       const amt = (typeof sch.dose_per_intake === 'number' ? sch.dose_per_intake : parseInt(sch.dose_per_intake as any, 10)) || 1;
       const res = await callApi('take_dose', user.user_id, sch.med_id, amt);
       if (res && res.success) {
+        const med = medications.find((m) => m.med_id === sch.med_id);
+        const medName = sch.med_name || med?.name || 'Medication';
+        const dosage = `${amt} ${sch.dose_unit || med?.stock_unit || 'tablet'}`;
+        const remaining = med ? Math.max(0, med.stock - amt) : undefined;
+
+        const now = new Date();
+        const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        window.dispatchEvent(
+          new CustomEvent('dose-taken-success', {
+            detail: {
+              medName,
+              dosage,
+              timeTaken: formatTimeWithAmPm(timeStr),
+              remainingStock: remaining,
+              stockUnit: sch.dose_unit || med?.stock_unit || 'tablets'
+            }
+          })
+        );
+
         fetchSchedulesAndMeds();
         if (onDataChange) onDataChange();
       }

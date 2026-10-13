@@ -10,6 +10,7 @@ import IntakeView from './components/IntakeView';
 import HistoryView from './components/HistoryView';
 import ReportsView from './components/ReportsView';
 import SettingsView from './components/SettingsView';
+import DoseSuccessModal, { DoseSuccessData } from './components/DoseSuccessModal';
 import { callApi } from './utils/pywebview';
 import { User, DueAlert } from './types';
 import { formatTimeWithAmPm } from './utils/timeFormat';
@@ -20,6 +21,7 @@ export default function App(): React.JSX.Element {
   const [activeTab, setActiveTab] = useState<string>('DashboardFrame');
   const [dataRefreshKey, setDataRefreshKey] = useState<number>(0);
   const [activeAlert, setActiveAlert] = useState<DueAlert | null>(null);
+  const [doseSuccessData, setDoseSuccessData] = useState<DoseSuccessData | null>(null);
   const [theme, setTheme] = useState<string>(() => {
     return localStorage.getItem('med_app_theme') || 'light';
   });
@@ -52,6 +54,17 @@ export default function App(): React.JSX.Element {
     };
     window.addEventListener('medication-due-alert', handleDueAlert);
     return () => window.removeEventListener('medication-due-alert', handleDueAlert);
+  }, []);
+
+  useEffect(() => {
+    const handleDoseSuccess = (e: Event) => {
+      const customEvent = e as CustomEvent<DoseSuccessData>;
+      if (customEvent.detail) {
+        setDoseSuccessData(customEvent.detail);
+      }
+    };
+    window.addEventListener('dose-taken-success', handleDoseSuccess);
+    return () => window.removeEventListener('dose-taken-success', handleDoseSuccess);
   }, []);
 
   useEffect(() => {
@@ -282,6 +295,12 @@ export default function App(): React.JSX.Element {
           </div>
         </div>
       )}
+
+      {/* Interactive Dose Success Celebration Modal */}
+      <DoseSuccessModal
+        data={doseSuccessData}
+        onClose={() => setDoseSuccessData(null)}
+      />
     </div>
   );
 }
