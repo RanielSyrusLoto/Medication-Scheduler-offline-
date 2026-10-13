@@ -125,7 +125,7 @@ export default function DoseSuccessModal({ data, onClose }: DoseSuccessModalProp
             Dose Successfully Taken!
           </h3>
           <p className="text-xs text-[#8B9DA8] dark:text-[#859ba8] mt-1 max-w-xs">
-            Naitake na ang iyong dose at na-update ang iyong medication records.
+            Your dose has been recorded and your medication inventory has been updated.
           </p>
         </div>
 
@@ -169,7 +169,7 @@ export default function DoseSuccessModal({ data, onClose }: DoseSuccessModalProp
         <div className="mt-3.5 px-3.5 py-2.5 rounded-xl bg-teal-50/60 dark:bg-[#183641]/60 border border-teal-100 dark:border-teal-900/30 flex items-center gap-2.5 text-xs text-[#0D9488] dark:text-[#2dd4bf]">
           <Award className="w-4 h-4 shrink-0" />
           <p className="text-[11px] font-medium leading-relaxed">
-            Mahusay! Ang pagiging consistent sa oras ay mahalaga para sa iyong kalusugan.
+            Great job! Staying consistent on time is key to your health and wellness.
           </p>
         </div>
 
