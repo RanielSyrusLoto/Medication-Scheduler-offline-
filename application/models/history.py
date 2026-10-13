@@ -106,23 +106,28 @@ class ReportGenerator:
                     if end and end < target_date_str:
                         continue
 
-                    # Extract schedule time e.g. "08:00"
-                    raw_time = str(time_value).strip()[:5]
-                    if not raw_time or len(raw_time) < 4:
-                        raw_time = "08:00"
+                    # Extract and normalize schedule time e.g. "08:00"
+                    try:
+                        clean_t = str(time_value).lower().replace('am', '').replace('pm', '').strip()
+                        parts = clean_t.split(':')
+                        h = int(parts[0])
+                        m = int(parts[1]) if len(parts) > 1 else 0
+                        time_24 = f"{h:02d}:{m:02d}"
+                    except Exception:
+                        time_24 = "08:00"
 
                     # If checking today, only consider missed if scheduled time has passed
-                    if is_today and raw_time > now_time_str:
+                    if is_today and time_24 > now_time_str:
                         continue
 
                     # Check if an intake was already logged on target_date for this user and med
                     existing = self.db.fetch_one('''
                         SELECT id, status FROM intake_log
-                        WHERE user_id = ? AND medication_id = ? AND date(timestamp) = ?
-                    ''', (uid, med_id, target_date_str))
+                        WHERE user_id = ? AND medication_id = ? AND (timestamp LIKE ? OR date(timestamp) = ?)
+                    ''', (uid, med_id, f"{target_date_str}%", target_date_str))
 
                     if not existing:
-                        missed_ts = f"{target_date_str} {raw_time}:00"
+                        missed_ts = f"{target_date_str} {time_24}:00"
                         self.db.execute_query('''
                             INSERT INTO intake_log (user_id, medication_id, medication_name, timestamp, status)
                             VALUES (?, ?, ?, ?, 'MISSED')

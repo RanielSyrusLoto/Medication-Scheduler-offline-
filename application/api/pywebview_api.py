@@ -7,6 +7,8 @@ import os
 
 class PythonAPI:
     def __init__(self):
+        from database.db_manager import DatabaseManager
+        self.db = DatabaseManager()
         self.user_manager = UserManager()
         self.inventory_manager = InventoryManager()
         self.dose_alert = DoseAlert()
@@ -110,8 +112,8 @@ class PythonAPI:
             today_str = datetime.now().strftime("%Y-%m-%d")
             today_logs_rows = self.db.fetch_all("""
                 SELECT medication_id, status FROM intake_log
-                WHERE user_id = ? AND date(timestamp) = ?
-            """, (user_id, today_str))
+                WHERE user_id = ? AND (timestamp LIKE ? OR date(timestamp) = ?)
+            """, (user_id, f"{today_str}%", today_str))
             today_logs = [{"med_id": r[0], "status": r[1]} for r in today_logs_rows]
 
             weekly_counts = [0] * 7
@@ -220,8 +222,8 @@ class PythonAPI:
             # If an existing MISSED log exists today for this medication, upgrade it to TAKEN
             missed_log = self.db.fetch_one("""
                 SELECT id FROM intake_log
-                WHERE user_id = ? AND medication_id = ? AND status = 'MISSED' AND date(timestamp) = ?
-            """, (user_id, med_id, today_str))
+                WHERE user_id = ? AND medication_id = ? AND status = 'MISSED' AND (timestamp LIKE ? OR date(timestamp) = ?)
+            """, (user_id, med_id, f"{today_str}%", today_str))
 
             if missed_log:
                 now_ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -255,8 +257,8 @@ class PythonAPI:
             today_str = datetime.now().strftime("%Y-%m-%d")
             today_logs_rows = self.db.fetch_all("""
                 SELECT medication_id, status FROM intake_log
-                WHERE user_id = ? AND date(timestamp) = ?
-            """, (user_id, today_str))
+                WHERE user_id = ? AND (timestamp LIKE ? OR date(timestamp) = ?)
+            """, (user_id, f"{today_str}%", today_str))
             status_map = {r[0]: r[1] for r in today_logs_rows}
 
             result = []
