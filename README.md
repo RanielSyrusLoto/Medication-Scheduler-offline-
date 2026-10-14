@@ -117,9 +117,9 @@ The project also includes a PyInstaller specification file for packaging the des
 
 ## Version
 
-**Current Version:** 1.2.0
+**Current Version:** 1.2.1
 
-**Release Date:** October 14, 2026
+**Release Date:** October 15, 2026
 
 ## Important Notice
 
