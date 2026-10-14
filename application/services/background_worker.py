@@ -115,6 +115,36 @@ class NotificationWorker:
             import subprocess
             import os
             import tempfile
+
+            med_img_tag = ""
+            try:
+                target_img_name = None
+                if medications and len(medications) > 0:
+                    first_med = medications[0]
+                    m_name = first_med.get("name", "") if isinstance(first_med, dict) else ""
+                    clean_m = "".join(c for c in m_name.lower() if c.isalnum())
+                    
+                    possible_dirs = [
+                        os.path.join(os.path.dirname(__file__), "..", "public", "drug_images"),
+                        os.path.join(os.path.dirname(__file__), "..", "dist", "drug_images"),
+                        os.path.abspath("application/public/drug_images"),
+                        os.path.abspath("public/drug_images")
+                    ]
+                    for p_dir in possible_dirs:
+                        if os.path.exists(p_dir):
+                            for f in os.listdir(p_dir):
+                                f_clean = "".join(c for c in f.lower().split('.')[0] if c.isalnum())
+                                if f_clean and (f_clean in clean_m or clean_m.startswith(f_clean)):
+                                    target_img_name = os.path.join(p_dir, f)
+                                    break
+                        if target_img_name:
+                            break
+                if target_img_name and os.path.exists(target_img_name):
+                    abs_img = os.path.abspath(target_img_name).replace('\\', '\\\\')
+                    med_img_tag = f'<image placement="appLogoOverride" hint-crop="circle" src="{abs_img}"/>'
+            except Exception:
+                med_img_tag = ""
+
             ps_script = f'''
             try {{
                 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
@@ -126,6 +156,7 @@ class NotificationWorker:
         <binding template="ToastGeneric">
             <text>{clean_title}</text>
             <text>{clean_message}</text>
+            {med_img_tag}
         </binding>
     </visual>
     <audio src="ms-winsoundevent:Notification.Reminder"/>

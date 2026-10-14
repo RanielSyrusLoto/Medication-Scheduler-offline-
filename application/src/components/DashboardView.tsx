@@ -3,6 +3,7 @@ import { Pill, Calendar, Check, Clock, Plus, ArrowRight, FileText, CheckCircle2,
 import { callApi } from '../utils/pywebview';
 import { User, DashboardDataResponse, Schedule, HistoryLog, Medication } from '../types';
 import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached, isAmTime } from '../utils/timeFormat';
+import { getMedicationImageUrl } from '../utils/imageHelper';
 
 interface DashboardViewProps {
   user: User | null;
@@ -66,6 +67,7 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
 
       const now = new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const imgSrc = getMedicationImageUrl(medName, (sch as any)?.image_path || med?.image_path);
 
       window.dispatchEvent(
         new CustomEvent('dose-taken-success', {
@@ -74,7 +76,8 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
             dosage,
             timeTaken: formatTimeWithAmPm(timeStr),
             remainingStock: remaining,
-            stockUnit: med?.stock_unit || 'tablets'
+            stockUnit: med?.stock_unit || 'tablets',
+            imageUrl: imgSrc
           }
         })
       );
@@ -129,7 +132,7 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
     if (end && end < todayStr) return false;
     return true;
   });
-  const todayScheduleItems = sortSchedulesByDeadline(validSchedules);
+  const todayScheduleItems = sortSchedulesByDeadline(validSchedules, data?.today_logs);
 
   // Compute stats for the 4 top cards
   const totalDosesToday = validSchedules.length > 0 ? validSchedules.length : (due_meds.length + doses_taken);
@@ -335,27 +338,7 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
                 const stockUnit = item.stock_unit || matchingMed?.stock_unit || 'tablets';
 
                 // Resolve drug picture linked to medication
-                const resolveMedImage = (): string => {
-                  const directPath = (item as any).image_path || matchingMed?.image_path;
-                  if (directPath && directPath.startsWith('data:')) {
-                    return directPath;
-                  }
-                  const nameClean = (medName || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                  if (nameClean.includes('paracetamol') || nameClean.includes('biogesic')) return '/drug_images/paracetamol.jpg';
-                  if (nameClean.includes('vitaminc') || (nameClean.includes('vitamin') && nameClean.includes('c')) || nameClean.includes('ascorbic')) return '/drug_images/vitaminc.jpg';
-                  if (nameClean.includes('multivitamin') || nameClean.includes('centrum') || nameClean.includes('revicon')) return '/drug_images/multivitamin.jpg';
-                  if (nameClean.includes('ibuprofen') || nameClean.includes('advil') || nameClean.includes('motrin')) return '/drug_images/ibuprofen.jpg';
-
-                  if (directPath) {
-                    if (directPath.startsWith('http') || directPath.startsWith('/')) {
-                      return directPath;
-                    }
-                    return `/drug_images/${directPath.replace('/drug_images/', '')}`;
-                  }
-                  return `/drug_images/${nameClean}.png`;
-                };
-
-                const imgSrc = resolveMedImage();
+                const imgSrc = getMedicationImageUrl(medName, (item as any).image_path || matchingMed?.image_path);
                 const isAm = isAmTime(item.time_value || timeStr);
                 const todayLog = (data?.today_logs || []).find((l) => l.med_id === item.med_id);
                 const todayStatus = item.today_status || todayLog?.status;

@@ -3,6 +3,7 @@ import { Pill, Check, Calendar, Clock, Plus, X, AlertCircle, Trash2, ChevronLeft
 import { callApi } from '../utils/pywebview';
 import { User, Schedule, Medication } from '../types';
 import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached, isAmTime } from '../utils/timeFormat';
+import { getMedicationImageUrl } from '../utils/imageHelper';
 
 interface IntakeViewProps {
   user: User | null;
@@ -19,25 +20,6 @@ interface PendingDosePrompt {
   sch: Schedule;
   medName: string;
   timeStr: string;
-}
-
-function getMedicationImageUrl(name?: string, image_path?: string | null): string {
-  if (image_path && image_path.startsWith('data:')) {
-    return image_path;
-  }
-  const nameClean = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-  if (nameClean.includes('paracetamol') || nameClean.includes('biogesic')) return '/drug_images/paracetamol.jpg';
-  if (nameClean.includes('vitaminc') || (nameClean.includes('vitamin') && nameClean.includes('c')) || nameClean.includes('ascorbic')) return '/drug_images/vitaminc.jpg';
-  if (nameClean.includes('multivitamin') || nameClean.includes('centrum') || nameClean.includes('revicon')) return '/drug_images/multivitamin.jpg';
-  if (nameClean.includes('ibuprofen') || nameClean.includes('advil') || nameClean.includes('motrin')) return '/drug_images/ibuprofen.jpg';
-
-  if (image_path) {
-    if (image_path.startsWith('http') || image_path.startsWith('/')) {
-      return image_path;
-    }
-    return `/drug_images/${image_path.replace('/drug_images/', '')}`;
-  }
-  return `/drug_images/${nameClean}.png`;
 }
 
 function formatDateDisplay(dateStr?: string | null): { dateFormatted: string; dayName: string } {
@@ -127,6 +109,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
         const medName = sch.med_name || med?.name || 'Medication';
         const dosage = `${amt} ${sch.dose_unit || med?.stock_unit || 'tablet'}`;
         const remaining = med ? Math.max(0, med.stock - amt) : undefined;
+        const imgSrc = getMedicationImageUrl(medName, sch.image_path || med?.image_path);
 
         const now = new Date();
         const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -138,7 +121,8 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               dosage,
               timeTaken: formatTimeWithAmPm(timeStr),
               remainingStock: remaining,
-              stockUnit: sch.dose_unit || med?.stock_unit || 'tablets'
+              stockUnit: sch.dose_unit || med?.stock_unit || 'tablets',
+              imageUrl: imgSrc
             }
           })
         );

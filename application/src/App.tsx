@@ -14,6 +14,7 @@ import DoseSuccessModal, { DoseSuccessData } from './components/DoseSuccessModal
 import { callApi } from './utils/pywebview';
 import { User, DueAlert } from './types';
 import { formatTimeWithAmPm, isAmTime } from './utils/timeFormat';
+import { getMedicationImageUrl } from './utils/imageHelper';
 
 export default function App(): React.JSX.Element {
   const [appLoading, setAppLoading] = useState<boolean>(true);
@@ -246,8 +247,15 @@ export default function App(): React.JSX.Element {
                   className="bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl p-3 flex items-center justify-between"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center shrink-0">
-                      <Pill className="w-4 h-4 -rotate-45" />
+                    <div className="w-8 h-8 rounded-lg overflow-hidden border border-[#94a9b8]/40 dark:border-[#2e4354] bg-white dark:bg-[#13222f] shadow-2xs flex items-center justify-center shrink-0">
+                      <img
+                        src={getMedicationImageUrl(m.name, (m as any).image_path)}
+                        alt={m.name}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                        }}
+                        className="w-full h-full object-cover rounded-lg"
+                      />
                     </div>
                     <div className="min-w-0">
                       <h4 className="font-bold text-[#1E2837] dark:text-white text-xs truncate">{m.name}</h4>

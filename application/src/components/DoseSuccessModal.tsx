@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Check, CheckCircle2, Sparkles, X, Clock, Pill, Package, Award } from 'lucide-react';
+import { getMedicationImageUrl } from '../utils/imageHelper';
 
 export interface DoseSuccessData {
   medName: string;
@@ -7,6 +8,7 @@ export interface DoseSuccessData {
   timeTaken?: string;
   remainingStock?: number | string;
   stockUnit?: string;
+  imageUrl?: string;
 }
 
 interface DoseSuccessModalProps {
@@ -131,10 +133,17 @@ export default function DoseSuccessModal({ data, onClose }: DoseSuccessModalProp
 
         {/* Medication Details Card */}
         <div className="mt-5 p-4 rounded-2xl bg-[#F8FAFC] dark:bg-[#172838] border border-[#E2E8F0] dark:border-[#223647] space-y-2.5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-500/10 text-[#0D9488] dark:text-[#2dd4bf] flex items-center justify-center shrink-0">
-                <Pill className="w-5 h-5 -rotate-45" />
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-2xl overflow-hidden border border-[#94a9b8]/40 dark:border-[#2e4354] bg-white dark:bg-[#13222f] shadow-xs flex items-center justify-center shrink-0">
+                <img
+                  src={data.imageUrl || getMedicationImageUrl(data.medName)}
+                  alt={data.medName}
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                  }}
+                  className="w-full h-full object-cover rounded-2xl"
+                />
               </div>
               <div className="min-w-0">
                 <h4 className="text-sm font-bold text-[#1E2837] dark:text-white truncate">

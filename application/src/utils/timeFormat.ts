@@ -117,11 +117,31 @@ export function sortSchedulesByDeadline<T extends {
   start_date?: string | null;
   schedule_date?: string | null;
   schedule_id?: number;
-}>(items: T[]): T[] {
+  med_id?: number;
+  today_status?: string | null;
+  status?: string | null;
+}>(items: T[], todayLogs?: Array<{ med_id?: number; status?: string }>): T[] {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
+  const isTaken = (item: T): boolean => {
+    if (item.today_status === 'TAKEN' || item.status === 'TAKEN') return true;
+    if (todayLogs && todayLogs.length > 0 && item.med_id) {
+      if (todayLogs.some((l) => l.med_id === item.med_id && l.status === 'TAKEN')) {
+        return true;
+      }
+    }
+    return false;
+  };
+
   return [...items].sort((a, b) => {
+    const takenA = isTaken(a);
+    const takenB = isTaken(b);
+
+    // 0. Primary Sort: Untaken schedules stay at the TOP (-1), Taken schedules move to the BOTTOM (1)
+    if (!takenA && takenB) return -1;
+    if (takenA && !takenB) return 1;
+
     // 1. Determine effective date string
     const rawDateA = (a.start_date || a.schedule_date || todayStr).trim();
     const rawDateB = (b.start_date || b.schedule_date || todayStr).trim();
