@@ -62,14 +62,33 @@ def check_for_updates(manifest_url=REMOTE_MANIFEST_URL):
     """Check online manifest URL for remote updates."""
     try:
         current_ver = get_current_version()
+        data = None
 
-        cache_buster_url = f"{manifest_url}{'&' if '?' in manifest_url else '?'}t={int(time.time())}"
-        req = urllib.request.Request(
-            cache_buster_url,
-            headers={'User-Agent': 'SmartMedicationScheduler-Updater/1.0', 'Cache-Control': 'no-cache'}
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            data = json.loads(response.read().decode('utf-8'))
+        # 1. Try GitHub API first for real-time manifest (bypasses raw CDN 5-minute cache)
+        try:
+            api_url = "https://api.github.com/repos/vargas2006/Medication-Scheduler-offline-/contents/version.json"
+            req_api = urllib.request.Request(
+                api_url,
+                headers={'User-Agent': 'SmartMedicationScheduler-Updater/1.0', 'Accept': 'application/vnd.github.v3+json'}
+            )
+            with urllib.request.urlopen(req_api, timeout=7) as resp_api:
+                api_json = json.loads(resp_api.read().decode('utf-8'))
+                if "content" in api_json:
+                    import base64
+                    decoded_bytes = base64.b64decode(api_json["content"])
+                    data = json.loads(decoded_bytes.decode('utf-8'))
+        except Exception as api_err:
+            print(f"[Updater] GitHub API manifest check failed ({api_err}), falling back to raw CDN.")
+
+        # 2. Fallback to raw CDN URL if GitHub API was unavailable or rate-limited
+        if not data:
+            cache_buster_url = f"{manifest_url}{'&' if '?' in manifest_url else '?'}t={int(time.time())}"
+            req = urllib.request.Request(
+                cache_buster_url,
+                headers={'User-Agent': 'SmartMedicationScheduler-Updater/1.0', 'Cache-Control': 'no-cache'}
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
+                data = json.loads(response.read().decode('utf-8'))
 
         remote_ver = data.get("version", current_ver)
         is_newer = compare_versions(current_ver, remote_ver)
