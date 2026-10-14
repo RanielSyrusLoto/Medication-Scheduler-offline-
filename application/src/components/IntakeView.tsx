@@ -251,6 +251,13 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
       const name = sch.med_name || matchingMed?.name;
       if (!name || !name.trim()) return false;
 
+      // Auto-exclude expired schedules whose end_date has passed or finished today
+      const now = new Date();
+      const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      const schedEnd = (sch.end_date || '').trim();
+      if (schedEnd && schedEnd < todayStr) return false;
+      if (schedEnd && schedEnd === todayStr && sch.today_status === 'TAKEN') return false;
+
       // Date filtering by selected month (if filterByMonth is active)
       if (filterByMonth) {
         const schedStart = (sch.start_date || sch.schedule_date || '').trim();

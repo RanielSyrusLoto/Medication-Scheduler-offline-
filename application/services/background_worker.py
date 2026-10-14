@@ -403,9 +403,17 @@ class NotificationWorker:
         except Exception as e:
             print(f"[NotificationWorker] Error checking missed doses: {e}")
 
+    def _check_expired_schedules(self):
+        try:
+            from models.schedule import DoseAlert
+            DoseAlert().cleanup_expired_schedules()
+        except Exception as e:
+            print(f"[NotificationWorker] Error cleaning expired schedules: {e}")
+
     def _run_loop(self):
         while self.running:
             try:
+                self._check_expired_schedules()
                 self._check_offline_popups()
                 self._check_due_medications()
                 self._check_missed_doses()

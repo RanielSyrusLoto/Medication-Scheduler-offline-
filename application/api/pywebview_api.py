@@ -233,6 +233,9 @@ class PythonAPI:
             else:
                 self.report_generator.log_intake(user_id, med_id, "TAKEN")
 
+            # Auto-delete schedule if final dose was taken on its end_date
+            self.dose_alert.cleanup_expired_schedules(user_id)
+
             return {"success": True, "message": "Dose logged as TAKEN."}
         except Exception as e:
             return {"success": False, "message": str(e)}

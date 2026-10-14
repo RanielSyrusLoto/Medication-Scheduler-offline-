@@ -65,7 +65,53 @@ class DoseAlert:
             (med_id, schedule_type, time_value, schedule_date, dose_per_intake, dose_unit, frequency, start_date, end_date, instructions)
         )
 
+    def cleanup_expired_schedules(self, user_id=None):
+        """
+        Automatically deletes schedules whose end_date has expired:
+        1. end_date < today_str (The end date has passed)
+        2. end_date == today_str and dose for today has already been taken (final dose completed)
+        """
+        try:
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            user_filter = "AND m.user_id = ?" if user_id is not None else ""
+            params = (today_str, user_id) if user_id is not None else (today_str,)
+
+            # 1. Delete all schedules where end_date is strictly before today
+            query_past = f'''
+                DELETE FROM schedules 
+                WHERE id IN (
+                    SELECT s.id FROM schedules s
+                    JOIN medications m ON s.medication_id = m.id
+                    WHERE s.end_date IS NOT NULL 
+                      AND s.end_date != '' 
+                      AND TRIM(s.end_date) < ?
+                      {user_filter}
+                )
+            '''
+            self.db.execute_query(query_past, params)
+
+            # 2. Delete schedules where end_date == today AND the dose was already TAKEN today
+            query_completed_today = f'''
+                DELETE FROM schedules
+                WHERE id IN (
+                    SELECT s.id FROM schedules s
+                    JOIN medications m ON s.medication_id = m.id
+                    JOIN intake_log l ON l.medication_id = s.medication_id
+                    WHERE s.end_date IS NOT NULL
+                      AND s.end_date != ''
+                      AND TRIM(s.end_date) = ?
+                      AND l.status = 'TAKEN'
+                      AND (l.timestamp LIKE ? OR date(l.timestamp) = ?)
+                      {user_filter}
+                )
+            '''
+            params_today = (today_str, f"{today_str}%", today_str, user_id) if user_id is not None else (today_str, f"{today_str}%", today_str)
+            self.db.execute_query(query_completed_today, params_today)
+        except Exception as e:
+            print(f"[DoseAlert] Note cleaning up expired schedules: {e}")
+
     def get_user_schedules(self, user_id):
+        self.cleanup_expired_schedules(user_id)
         query = '''
             SELECT s.id, s.medication_id, s.schedule_type, s.time_value, s.schedule_date,
                    COALESCE(s.dose_per_intake, 1), COALESCE(s.dose_unit, 'tablet'), COALESCE(s.frequency, 'Every day'),
@@ -96,6 +142,7 @@ class DoseAlert:
         if not user_id:
             return []
 
+        self.cleanup_expired_schedules(user_id)
         due_meds = []
         now = datetime.now()
         today_str = now.strftime("%Y-%m-%d")
