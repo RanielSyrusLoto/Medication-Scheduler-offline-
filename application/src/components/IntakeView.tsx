@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Pill, Check, Calendar, Clock, Plus, X, AlertCircle, Trash2, ChevronLeft, ChevronRight, Search, Droplets, Repeat, Info, Package, Sun, Moon, CheckCircle2 } from 'lucide-react';
+import { Pill, Check, Calendar, Clock, Plus, X, AlertCircle, Trash2, ChevronLeft, ChevronRight, Search, Droplets, Repeat, Info, Package, Sun, Moon, CheckCircle2, ChevronDown } from 'lucide-react';
 import { callApi } from '../utils/pywebview';
 import { User, Schedule, Medication } from '../types';
 import { formatTimeWithAmPm, sortSchedulesByDeadline, isScheduleTimeReached, isAmTime } from '../utils/timeFormat';
@@ -19,6 +19,25 @@ interface PendingDosePrompt {
   sch: Schedule;
   medName: string;
   timeStr: string;
+}
+
+function getMedicationImageUrl(name?: string, image_path?: string | null): string {
+  if (image_path && image_path.startsWith('data:')) {
+    return image_path;
+  }
+  const nameClean = (name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (nameClean.includes('paracetamol') || nameClean.includes('biogesic')) return '/drug_images/paracetamol.jpg';
+  if (nameClean.includes('vitaminc') || (nameClean.includes('vitamin') && nameClean.includes('c')) || nameClean.includes('ascorbic')) return '/drug_images/vitaminc.jpg';
+  if (nameClean.includes('multivitamin') || nameClean.includes('centrum') || nameClean.includes('revicon')) return '/drug_images/multivitamin.jpg';
+  if (nameClean.includes('ibuprofen') || nameClean.includes('advil') || nameClean.includes('motrin')) return '/drug_images/ibuprofen.jpg';
+
+  if (image_path) {
+    if (image_path.startsWith('http') || image_path.startsWith('/')) {
+      return image_path;
+    }
+    return `/drug_images/${image_path.replace('/drug_images/', '')}`;
+  }
+  return `/drug_images/${nameClean}.png`;
 }
 
 function formatDateDisplay(dateStr?: string | null): { dateFormatted: string; dayName: string } {
@@ -47,6 +66,8 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
   // Create Schedule Modal state
   const [showCreateModal, setShowCreateModal] = useState<boolean>(false);
   const [selectedMedId, setSelectedMedId] = useState<string>('');
+  const [isMedDropdownOpen, setIsMedDropdownOpen] = useState<boolean>(false);
+  const [medSearchQuery, setMedSearchQuery] = useState<string>('');
   const [startDate, setStartDate] = useState<string>(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState<string>('');
   const [selectedTime, setSelectedTime] = useState<string>('08:00');
@@ -288,6 +309,16 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
     })
   );
 
+  const currentSelectedMed = medications.find((m) => m.med_id.toString() === selectedMedId) || (medications.length > 0 ? medications[0] : null);
+  const filteredMedsForDropdown = medications.filter((m) => {
+    if (!medSearchQuery.trim()) return true;
+    const q = medSearchQuery.toLowerCase();
+    return (
+      (m.name || '').toLowerCase().includes(q) ||
+      (m.dosage || m.strength || '').toLowerCase().includes(q)
+    );
+  });
+
   return (
     <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
       {/* 1. STICKY TOP BAR: Search Bar + Buttons (Always Fixed at Top, Never Scrolls) */}
@@ -409,28 +440,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               const stockRemaining = sch.stock ?? matchingMed?.stock ?? 0;
               const stockUnit = sch.stock_unit || matchingMed?.stock_unit || 'tablets';
 
-              // Resolve drug picture linked to medication
-              const resolveMedImage = (): string => {
-                const directPath = sch.image_path || matchingMed?.image_path;
-                if (directPath && directPath.startsWith('data:')) {
-                  return directPath;
-                }
-                const nameClean = (sch.med_name || matchingMed?.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
-                if (nameClean.includes('paracetamol') || nameClean.includes('biogesic')) return '/drug_images/paracetamol.jpg';
-                if (nameClean.includes('vitaminc') || (nameClean.includes('vitamin') && nameClean.includes('c')) || nameClean.includes('ascorbic')) return '/drug_images/vitaminc.jpg';
-                if (nameClean.includes('multivitamin') || nameClean.includes('centrum') || nameClean.includes('revicon')) return '/drug_images/multivitamin.jpg';
-                if (nameClean.includes('ibuprofen') || nameClean.includes('advil') || nameClean.includes('motrin')) return '/drug_images/ibuprofen.jpg';
-
-                if (directPath) {
-                  if (directPath.startsWith('http') || directPath.startsWith('/')) {
-                    return directPath;
-                  }
-                  return `/drug_images/${directPath.replace('/drug_images/', '')}`;
-                }
-                return `/drug_images/${nameClean}.png`;
-              };
-
-              const imgSrc = resolveMedImage();
+              const imgSrc = getMedicationImageUrl(sch.med_name || matchingMed?.name, sch.image_path || matchingMed?.image_path);
               const isAm = isAmTime(sch.time_value);
 
               return (
@@ -682,21 +692,147 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
                 )}
 
                 <div className="space-y-3.5">
-                  <div>
+                  <div className="relative">
                     <label className="block text-[11px] font-semibold text-[#64748B] dark:text-[#859ba8] mb-1">
                       Medication *
                     </label>
-                    <select
-                      value={selectedMedId}
-                      onChange={(e) => setSelectedMedId(e.target.value)}
-                      className="w-full px-3.5 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-[#2E7D7E]"
+
+                    {/* Visual Selector Button with Medication Picture */}
+                    <button
+                      type="button"
+                      onClick={() => setIsMedDropdownOpen(!isMedDropdownOpen)}
+                      className="w-full px-3 py-2 bg-[#F3F6F9] dark:bg-[#172838] border border-[#E3E8EE] dark:border-[#1c3345] hover:border-[#2E7D7E] dark:hover:border-[#2dd4bf] rounded-xl text-left flex items-center justify-between gap-2.5 transition-all shadow-2xs group cursor-pointer"
                     >
-                      {medications.map((m) => (
-                        <option key={m.med_id} value={m.med_id.toString()}>
-                          {m.name} ({m.dosage || m.strength || 'Standard Dose'}) - {m.stock} {m.stock_unit || 'in stock'}
-                        </option>
-                      ))}
-                    </select>
+                      {currentSelectedMed ? (
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {/* Selected Drug Thumbnail Picture */}
+                          <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-xl overflow-hidden border border-[#bccddc] dark:border-[#2e4354] shrink-0 bg-white dark:bg-[#112338] p-0.5 flex items-center justify-center shadow-xs">
+                            <img
+                              src={getMedicationImageUrl(currentSelectedMed.name, currentSelectedMed.image_path)}
+                              alt={currentSelectedMed.name}
+                              onError={(e) => {
+                                (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                              }}
+                              className="w-full h-full object-cover rounded-lg"
+                            />
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs font-bold text-[#1E2837] dark:text-white truncate">
+                                {currentSelectedMed.name}
+                              </span>
+                              <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-teal-50 dark:bg-teal-500/15 text-[#2E7D7E] dark:text-[#2dd4bf] border border-teal-200 dark:border-teal-500/30 shrink-0">
+                                {currentSelectedMed.dosage || currentSelectedMed.strength || 'Standard'}
+                              </span>
+                            </div>
+                            <span className="text-[10px] text-[#7890a2] dark:text-[#8da5b6] block truncate">
+                              Stock: {currentSelectedMed.stock} {currentSelectedMed.stock_unit || 'tablets'}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-[#8B9DA8]">Select a medication...</span>
+                      )}
+
+                      <ChevronDown className={`w-4 h-4 text-[#8B9DA8] transition-transform duration-200 shrink-0 ${isMedDropdownOpen ? 'rotate-180 text-[#2E7D7E]' : ''}`} />
+                    </button>
+
+                    {/* Dropdown Menu Showing Picture for Every Medication */}
+                    {isMedDropdownOpen && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => {
+                            setIsMedDropdownOpen(false);
+                            setMedSearchQuery('');
+                          }}
+                        />
+
+                        <div className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white dark:bg-[#13222f] border border-[#c5d5e2] dark:border-[#2b4154] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-64 animate-fadeIn">
+                          {medications.length > 4 && (
+                            <div className="p-2 border-b border-[#E3E8EE] dark:border-[#1c3345] bg-[#F8FAFC] dark:bg-[#172838]">
+                              <div className="relative flex items-center">
+                                <Search className="w-3.5 h-3.5 text-[#8B9DA8] absolute left-2.5 pointer-events-none" />
+                                <input
+                                  type="text"
+                                  placeholder="Search medication..."
+                                  value={medSearchQuery}
+                                  onChange={(e) => setMedSearchQuery(e.target.value)}
+                                  className="w-full pl-8 pr-3 py-1.5 bg-white dark:bg-[#112338] border border-[#d2dfeb] dark:border-[#2a3f52] rounded-lg text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E]"
+                                  autoFocus
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          <div className="overflow-y-auto max-h-52 p-1.5 space-y-1 custom-scrollbar">
+                            {filteredMedsForDropdown.length === 0 ? (
+                              <div className="py-4 text-center text-xs text-[#8B9DA8]">
+                                No medication found.
+                              </div>
+                            ) : (
+                              filteredMedsForDropdown.map((m) => {
+                                const isSelected = m.med_id.toString() === selectedMedId;
+                                const img = getMedicationImageUrl(m.name, m.image_path);
+
+                                return (
+                                  <button
+                                    key={m.med_id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedMedId(m.med_id.toString());
+                                      setIsMedDropdownOpen(false);
+                                      setMedSearchQuery('');
+                                      if (m.stock_unit && (!doseUnit || doseUnit === 'tablet')) {
+                                        setDoseUnit(m.stock_unit.replace(/s$/, ''));
+                                      }
+                                    }}
+                                    className={`w-full px-2.5 py-2 rounded-xl text-left flex items-center justify-between gap-2.5 transition-all cursor-pointer ${
+                                      isSelected
+                                        ? 'bg-[#EBF5F5] dark:bg-[#153a42] border border-[#2E7D7E]/40 text-[#2E7D7E] dark:text-[#2dd4bf]'
+                                        : 'hover:bg-[#F3F6F9] dark:hover:bg-[#172838] text-[#1E2837] dark:text-white'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                      {/* Drug Picture Squircle */}
+                                      <div className="w-9 h-9 min-w-[36px] min-h-[36px] max-w-[36px] max-h-[36px] aspect-square rounded-xl overflow-hidden border border-[#c0d2e0] dark:border-[#2e4354] shrink-0 bg-white dark:bg-[#112338] p-0.5 flex items-center justify-center shadow-2xs">
+                                        <img
+                                          src={img}
+                                          alt={m.name}
+                                          onError={(e) => {
+                                            (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                                          }}
+                                          className="w-full h-full object-cover rounded-lg"
+                                        />
+                                      </div>
+
+                                      <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-1.5">
+                                          <span className="text-xs font-bold truncate">
+                                            {m.name}
+                                          </span>
+                                          <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-md bg-white/80 dark:bg-white/10 text-[#245878] dark:text-[#9bc2db] border border-[#bcd6ed] dark:border-[#2c5375] shrink-0">
+                                            {m.dosage || m.strength || 'Standard'}
+                                          </span>
+                                        </div>
+                                        <span className="text-[10px] text-[#7890a2] dark:text-[#8da5b6] block truncate">
+                                          Stock: {m.stock} {m.stock_unit || 'tablets'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {isSelected && (
+                                      <Check className="w-4 h-4 text-[#2E7D7E] dark:text-[#2dd4bf] shrink-0" />
+                                    )}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* Start Date on Left, End Date on Right */}
@@ -827,16 +963,74 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               </div>
             </form>
 
-            {/* Artwork Side (5 cols) */}
-            <div className="hidden md:block md:col-span-5 relative min-h-[380px] lg:min-h-[460px] bg-gradient-to-br from-[#E2F0EF] to-[#D5EAE9] dark:from-[#112733] dark:to-[#0a1822] overflow-hidden">
-              <img
-                src="/assets/side_card_art.jpg"
-                alt="Health care illustration"
-                className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-              />
-              <div className="absolute top-6 right-6 max-w-[160px] text-right">
-                <p className="text-xs font-medium text-[#2E7D7E] dark:text-[#2dd4bf] italic font-serif leading-snug">
-                  Better Health, Brighter Future ♡
+            {/* Medication Preview Card Side (5 cols) */}
+            <div className="hidden md:flex md:col-span-5 relative min-h-[380px] lg:min-h-[460px] bg-gradient-to-br from-[#E2F0EF] via-[#e8f3f2] to-[#D5EAE9] dark:from-[#112733] dark:via-[#132d3b] dark:to-[#0a1822] overflow-hidden flex-col justify-between p-6 border-l border-[#E3E8EE] dark:border-[#1c3345]">
+              {/* Subtle cross / helix watermark */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-25 select-none">
+                <svg className="w-64 h-32 text-[#2E7D7E]/20 dark:text-[#2dd4bf]/15" viewBox="0 0 240 100" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M100,20 h25 v25 h25 v25 h-25 v25 h-25 v-25 h-25 v-25 h25 z" />
+                </svg>
+              </div>
+
+              {/* Top Header */}
+              <div className="relative z-1 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#2E7D7E] dark:text-[#2dd4bf] bg-white/80 dark:bg-[#172838] px-2.5 py-1 rounded-full border border-teal-200 dark:border-teal-500/30 shadow-2xs">
+                  Medication Preview
+                </span>
+                <span className="text-xs text-[#2E7D7E] dark:text-[#2dd4bf] italic font-serif">
+                  Care & Routine ♡
+                </span>
+              </div>
+
+              {/* Center: Large High-Res Picture & Details */}
+              {currentSelectedMed ? (
+                <div className="relative z-1 flex flex-col items-center text-center my-auto py-2">
+                  <div className="w-28 h-28 lg:w-32 lg:h-32 rounded-3xl overflow-hidden border-2 border-white dark:border-[#2e4354] shadow-xl bg-white dark:bg-[#172838] p-1.5 mb-3 group hover:scale-105 transition-transform duration-300">
+                    <img
+                      src={getMedicationImageUrl(currentSelectedMed.name, currentSelectedMed.image_path)}
+                      alt={currentSelectedMed.name}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/drug_images/paracetamol.jpg';
+                      }}
+                      className="w-full h-full object-cover rounded-2xl"
+                    />
+                  </div>
+
+                  <h4 className="text-base lg:text-lg font-black text-[#112338] dark:text-white tracking-tight">
+                    {currentSelectedMed.name}
+                  </h4>
+                  <div className="flex items-center gap-1.5 mt-1 justify-center flex-wrap">
+                    <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-white/90 dark:bg-white/10 text-[#1b6194] dark:text-[#88bfe8] border border-[#bcd6ed] dark:border-[#2c5375] shadow-2xs">
+                      {currentSelectedMed.dosage || currentSelectedMed.strength || 'Standard'}
+                    </span>
+                    <span className="text-[11px] font-semibold text-[#5e788e] dark:text-[#8da5b6]">
+                      #{currentSelectedMed.med_id}
+                    </span>
+                  </div>
+
+                  {/* Quick specs pills */}
+                  <div className="mt-4 flex flex-col gap-1.5 w-full max-w-[220px]">
+                    <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/80 dark:bg-[#172838]/80 border border-teal-100 dark:border-teal-500/20 text-xs shadow-2xs">
+                      <span className="text-[#64748B] dark:text-[#859ba8] font-medium">Scheduled Time:</span>
+                      <strong className="text-[#1E2837] dark:text-white">{formatTimeWithAmPm(selectedTime)}</strong>
+                    </div>
+                    <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/80 dark:bg-[#172838]/80 border border-teal-100 dark:border-teal-500/20 text-xs shadow-2xs">
+                      <span className="text-[#64748B] dark:text-[#859ba8] font-medium">Available Stock:</span>
+                      <strong className="text-[#2E7D7E] dark:text-[#2dd4bf]">{currentSelectedMed.stock} {currentSelectedMed.stock_unit || 'tablets'}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="relative z-1 flex flex-col items-center justify-center my-auto text-center text-[#8B9DA8]">
+                  <Pill className="w-12 h-12 text-[#2E7D7E]/40 mb-2" />
+                  <p className="text-xs font-medium">Select a medication to view preview.</p>
+                </div>
+              )}
+
+              {/* Bottom footer text */}
+              <div className="relative z-1 text-center pt-2 border-t border-[#2E7D7E]/10 dark:border-teal-500/10">
+                <p className="text-[11px] text-[#64748B] dark:text-[#8ba3b5]">
+                  Your health matters. Keep taking your doses on time.
                 </p>
               </div>
             </div>
