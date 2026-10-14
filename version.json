@@ -1,7 +1,7 @@
 {
-  "version": "1.1.9",
-  "release_date": "2026-10-13",
-  "release_notes": "Version 1.1.9: Added dynamic Sun (AM) and Moon (PM) schedule icons, automatic logging of missed medication doses, overdue late intake support, and improved adherence tracking.",
+  "version": "1.2.0",
+  "release_date": "2026-10-14",
+  "release_notes": "Version 1.2.0: Added visual medication selector with pictures in schedule creation, automatic schedule deletion upon end date, improved responsive dashboard layouts, and refined schedule status indicators.",
   "download_url": "https://raw.githubusercontent.com/vargas2006/Medication-Scheduler-offline-/main/SmartMedicationScheduler.zip",
   "mandatory": false
 }
