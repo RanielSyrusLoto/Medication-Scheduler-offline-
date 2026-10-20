@@ -25,31 +25,62 @@ export default function DashboardView({ user, onDataChange, onNavigate, refreshK
   const [loading, setLoading] = useState<boolean>(true);
   const [pendingDosePrompt, setPendingDosePrompt] = useState<PendingDosePrompt | null>(null);
 
-  const fetchDashboard = async () => {
-    if (!user?.user_id) return;
-    setLoading(true);
-    try {
-      const [dashRes, schRes, medRes] = await Promise.all([
-        callApi<DashboardDataResponse>('get_dashboard_data', user.user_id),
-        callApi('get_schedules', user.user_id),
-        callApi('get_medications', user.user_id)
-      ]);
+interface ScheduleResponse {
+  success: boolean;
+  schedules?: Schedule[];
+}
 
-      if (dashRes && dashRes.success) {
-        setData(dashRes as DashboardDataResponse);
+interface MedicationResponse {
+  success: boolean;
+  medications?: Medication[];
+}
+
+const fetchDashboard = async () => {
+  if (!user?.user_id) return;
+  setLoading(true);
+
+  try {
+    const [dashRes, schRes, medRes] = await Promise.allSettled([
+      callApi<DashboardDataResponse>('get_dashboard_data', user.user_id),
+      callApi<ScheduleResponse>('get_schedules', user.user_id),
+      callApi<MedicationResponse>('get_medications', user.user_id)
+    ]);
+
+    if (dashRes.status === 'fulfilled') {
+      if (dashRes.value.success) {
+        setData(dashRes.value);
+      } else {
+        console.error('Failed fetching dashboard data', dashRes.value.error || dashRes.value.message);
       }
-      if (schRes && schRes.success) {
-        setSchedules(schRes.schedules || []);
-      }
-      if (medRes && medRes.success) {
-        setMedications(medRes.medications || []);
-      }
-    } catch (e) {
-      console.error('Failed fetching dashboard info', e);
-    } finally {
-      setLoading(false);
+    } else {
+      console.error('Failed fetching dashboard data', dashRes.reason);
     }
-  };
+
+    if (schRes.status === 'fulfilled') {
+      if (schRes.value.success) {
+        setSchedules(schRes.value.schedules || []);
+      } else {
+        console.error('Failed fetching schedules', schRes.value.error || schRes.value.message);
+      }
+    } else {
+      console.error('Failed fetching schedules', schRes.reason);
+    }
+
+    if (medRes.status === 'fulfilled') {
+      if (medRes.value.success) {
+        setMedications(medRes.value.medications || []);
+      } else {
+        console.error('Failed fetching medications', medRes.value.error || medRes.value.message);
+      }
+    } else {
+      console.error('Failed fetching medications', medRes.reason);
+    }
+  } catch (e) {
+    console.error('Failed fetching dashboard info', e);
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchDashboard();
