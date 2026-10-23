@@ -184,7 +184,7 @@ const fetchDashboard = async () => {
       <div className="shrink-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {/* Card 1: Total Medications */}
         <div
-          onClick={onAddMedication}
+          onClick={() => onNavigate && onNavigate('MedicationFrame')}
           className="glass-surface relative overflow-hidden rounded-2xl bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 p-4 sm:p-4.5 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
         >
           {/* Bottom-right decorative curved wave accent */}
@@ -502,7 +502,7 @@ const fetchDashboard = async () => {
             <div className="space-y-1.5">
               <button
                 type="button"
-                onClick={() => onNavigate && onNavigate('MedicationFrame')}
+                onClick={onAddMedication}
                 className="w-full py-2 px-3.5 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
