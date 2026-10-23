@@ -10,7 +10,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ activeTab, setActiveTab, user, onLogout }: SidebarProps): React.JSX.Element {
-  const [isCollapsed, setIsCollapsed] = useState<boolean>(false);
+  const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
   const displayName = user?.name || user?.username || 'John Lee Vargas';
 
   const navItems = [

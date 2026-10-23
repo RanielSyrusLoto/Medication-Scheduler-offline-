@@ -306,7 +306,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
   return (
     <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
       {/* 1. STICKY TOP BAR: Search Bar + Buttons (Always Fixed at Top, Never Scrolls) */}
-      <div className="shrink-0 pb-4 mb-4 border-b border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9] dark:bg-[#0c1722] z-10">
+      <div className="glass-surface shrink-0 pb-4 mb-4 border border-white/70 dark:border-white/10 rounded-2xl px-4 pt-4 bg-white/95 dark:bg-[#13222f]/95 z-10">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
           {/* Prominent Search Bar */}
           <div className="relative flex-1 max-w-md">
@@ -316,7 +316,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search schedules by medication, time, dosage..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
+              className="glass-control w-full pl-10 pr-4 py-2.5 bg-white/65 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
             />
             {searchTerm && (
               <button
@@ -337,8 +337,8 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               onClick={() => setFilterByMonth(!filterByMonth)}
               className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-all ${
                 filterByMonth
-                  ? 'bg-teal-50 dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf] border-[#2E7D7E]/30 dark:border-[#2dd4bf]/30 shadow-2xs'
-                  : 'bg-white dark:bg-[#13222f] text-[#64748B] dark:text-[#94A3B8] border-[#E3E8EE] dark:border-[#1c3345]'
+                  ? 'glass-control bg-teal-50/80 dark:bg-[#183641]/85 text-[#2E7D7E] dark:text-[#2dd4bf] border-[#2E7D7E]/30 dark:border-[#2dd4bf]/30 shadow-2xs'
+                  : 'glass-control bg-white/65 dark:bg-[#13222f]/75 text-[#64748B] dark:text-[#94A3B8] border-white/80 dark:border-white/10'
               }`}
               title="Toggle date filter by month"
             >
@@ -347,7 +347,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
 
             {/* Month Navigation Pill */}
             {filterByMonth && (
-              <div className="flex items-center gap-1 px-2.5 py-1.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
+              <div className="glass-control flex items-center gap-1 px-2.5 py-1.5 bg-white/65 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-xl text-xs font-semibold text-[#1E2837] dark:text-white shadow-xs">
                 <button
                   type="button"
                   onClick={prevMonth}
@@ -384,7 +384,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
                 setFormMsg({ text: '', isError: false });
                 setShowCreateModal(true);
               }}
-              className="py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 shrink-0"
+              className="glass-control py-2.5 px-4 bg-[#2E7D7E]/90 hover:bg-[#26696a]/90 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Create Schedule</span>
@@ -430,7 +430,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               return (
                 <div
                   key={sch.schedule_id}
-                  className="rounded-2xl border border-[#bcccd8] dark:border-[#2b4154] bg-gradient-to-r from-[#b5c7d6]/75 via-[#dbe4eb]/65 to-[#ece9e2]/85 dark:from-[#1b2f40] dark:via-[#162736] dark:to-[#13222f] p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex flex-col lg:flex-row items-stretch justify-between gap-4 relative overflow-hidden group"
+                  className="glass-surface rounded-2xl border border-white/80 dark:border-white/10 bg-white/75 dark:bg-[#13222f]/75 p-4 sm:p-5 hover:shadow-md transition-all flex flex-col lg:flex-row items-stretch justify-between gap-4 relative overflow-hidden group"
                 >
                   {/* Subtle medical cross & DNA helix watermark matching reference */}
                   <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-40">
@@ -595,8 +595,8 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
         {/* RIGHT COLUMN: FIXED PICTURE & GUIDELINES (Responsive Desktop Panel, Non-Scrollable) */}
         <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
           {/* Card 1: Medical Visual & Better Health Quote Card (Non-Scrollable, Auto-Fit) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center flex-1 min-h-0 justify-between overflow-hidden shrink-0">
-            <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative shadow-sm max-h-[190px] sm:max-h-[220px] 2xl:max-h-[260px] mb-2">
+          <div className="glass-surface bg-white/80 dark:bg-[#13222f]/85 border border-white/80 dark:border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center gap-3 overflow-hidden shrink-0">
+            <div className="w-full h-[170px] sm:h-[190px] 2xl:h-[220px] rounded-2xl overflow-hidden relative shadow-sm shrink-0">
               <img
                 src="/assets/side_card_art.jpg"
                 alt="Medication scheduler photography"
@@ -609,7 +609,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
               </div>
             </div>
 
-            <div className="shrink-0 space-y-0.5">
+            <div className="shrink-0 space-y-1">
               <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
                 Better Health, Brighter Future ♡
               </h3>
@@ -620,7 +620,7 @@ export default function IntakeView({ user, onDataChange, refreshKey }: IntakeVie
           </div>
 
           {/* Card 2: Hydration & Medication Tip Card (Non-Scrollable Guidelines) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2 shrink-0">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-3 sm:p-3.5 space-y-2 shrink-0">
             <div className="flex items-center gap-2 pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               <div className="w-6 h-6 rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
                 <Droplets className="w-3.5 h-3.5" />
