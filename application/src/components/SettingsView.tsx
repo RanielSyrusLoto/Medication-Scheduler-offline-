@@ -327,7 +327,7 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
         {/* Left Form Settings (8 cols) - Scrollable */}
         <div className="lg:col-span-8 space-y-5 h-full overflow-y-auto custom-scrollbar pr-1">
           {/* 1. APPLICATION SETTINGS CARD */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-6 shadow-sm space-y-5">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#1E2837] dark:text-white pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               Application Settings
             </h3>
@@ -455,7 +455,7 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
           </div>
 
           {/* 2. ONLINE NOTIFICATIONS CARD (RESTORED) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-sm space-y-5">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-6 shadow-sm space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-sky-50 dark:bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center">
@@ -611,7 +611,7 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
           </div>
 
           {/* 3. SOFTWARE UPDATES CARD (RESTORED UPDATE BUTTON) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center">
@@ -666,7 +666,7 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
           </div>
 
           {/* 4. ACCOUNT SETTINGS CARD */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-6 shadow-sm space-y-4">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-6 shadow-sm space-y-4">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#1E2837] dark:text-white pb-3 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               Account & Security
             </h3>
@@ -699,7 +699,7 @@ export default function SettingsView({ user, theme = 'light', onToggleTheme, onL
         </div>
 
         {/* RIGHT COLUMN: FIXED PICTURE PANEL (Responsive Desktop Panel, Non-Scrollable, Full-Height Fit) */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col items-center justify-between text-center shrink-0 h-full">
+        <div className="glass-surface lg:col-span-4 bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-4 sm:p-5 shadow-sm overflow-hidden flex flex-col items-center justify-between text-center shrink-0 h-full">
           {/* Large Image - Fills all available vertical space ("sakto") */}
           <div className="w-full flex-1 min-h-[340px] sm:min-h-[380px] lg:min-h-[420px] rounded-2xl overflow-hidden relative shadow-sm mb-3.5">
             <img

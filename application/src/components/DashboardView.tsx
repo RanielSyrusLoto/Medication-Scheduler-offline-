@@ -189,7 +189,7 @@ const fetchDashboard = async () => {
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#E0F2FE]/85 dark:text-[#0284C7]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#E0F2FE]/85 dark:text-[#0284C7]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -198,12 +198,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#E0F2FE] dark:bg-[#0c2a42] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#E0F2FE] dark:bg-[#0c2a42] flex items-center justify-center shrink-0">
             <Pill className="w-5 h-5 -rotate-45 text-[#0284C7] dark:text-[#38BDF8]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {total_meds}
             </h3>
@@ -213,7 +213,7 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#38BDF8] dark:text-[#38BDF8] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#38BDF8] dark:text-[#38BDF8] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
 
         {/* Card 2: Today's Doses */}
@@ -223,7 +223,7 @@ const fetchDashboard = async () => {
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#CCFBF1]/85 dark:text-[#0D9488]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#CCFBF1]/85 dark:text-[#0D9488]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -232,12 +232,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#CCFBF1] dark:bg-[#0c3332] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#CCFBF1] dark:bg-[#0c3332] flex items-center justify-center shrink-0">
             <Calendar className="w-5 h-5 text-[#0D9488] dark:text-[#2DD4BF]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {totalDosesToday}
             </h3>
@@ -247,7 +247,7 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#2DD4BF] dark:text-[#2DD4BF] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#2DD4BF] dark:text-[#2DD4BF] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
 
         {/* Card 3: Taken */}
@@ -257,7 +257,7 @@ const fetchDashboard = async () => {
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#DCFCE7]/85 dark:text-[#16A34A]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#DCFCE7]/85 dark:text-[#16A34A]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -266,12 +266,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#DCFCE7] dark:bg-[#0e3522] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#DCFCE7] dark:bg-[#0e3522] flex items-center justify-center shrink-0">
             <Check className="w-5 h-5 stroke-[2.5] text-[#16A34A] dark:text-[#4ADE80]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {takenCount}
             </h3>
@@ -281,7 +281,7 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#4ADE80] dark:text-[#4ADE80] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#4ADE80] dark:text-[#4ADE80] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
 
         {/* Card 4: Upcoming */}
@@ -291,7 +291,7 @@ const fetchDashboard = async () => {
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#FEF3C7]/85 dark:text-[#D97706]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#FEF3C7]/85 dark:text-[#D97706]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -300,12 +300,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#FEF3C7] dark:bg-[#382b0e] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#FEF3C7] dark:bg-[#382b0e] flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5 text-[#D97706] dark:text-[#FBBF24]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {upcomingCount}
             </h3>
@@ -315,7 +315,7 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#FBBF24] dark:text-[#FBBF24] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#FBBF24] dark:text-[#FBBF24] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
       </div>
 

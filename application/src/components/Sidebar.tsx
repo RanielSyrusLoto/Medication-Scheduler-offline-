@@ -23,7 +23,7 @@ export default function Sidebar({ activeTab, setActiveTab, user, onLogout }: Sid
   ];
 
   return (
-    <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[240px]'} bg-white dark:bg-[#09121b] border-r border-[#E3E8EE] dark:border-[#1c3345] flex flex-col h-full shrink-0 select-none transition-[width] duration-200`}>
+    <aside className={`${isCollapsed ? 'w-[72px]' : 'w-[240px]'} bg-[#fff6d1] dark:bg-[#09121b] border-r border-[#E3E8EE] dark:border-[#1c3345] flex flex-col h-full shrink-0 select-none transition-[width] duration-200`}>
       {/* Brand Header */}
       <div className={`flex ${isCollapsed ? 'flex-col items-center gap-3.5 px-2' : 'items-center justify-between gap-3.5 px-5'} py-[23px] border-b border-[#E3E8EE] dark:border-[#1c3345]`}>
         <div className={`flex items-center ${isCollapsed ? 'w-full justify-center' : 'gap-3.5'} min-w-0`}>
