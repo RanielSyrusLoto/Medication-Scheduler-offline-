@@ -9,6 +9,7 @@ interface DashboardViewProps {
   user: User | null;
   onDataChange?: () => void;
   onNavigate?: (tab: string) => void;
+  onAddMedication?: () => void;
   refreshKey?: number;
 }
 
@@ -18,7 +19,7 @@ interface PendingDosePrompt {
   timeStr: string;
 }
 
-export default function DashboardView({ user, onDataChange, onNavigate, refreshKey }: DashboardViewProps): React.JSX.Element {
+export default function DashboardView({ user, onDataChange, onNavigate, onAddMedication, refreshKey }: DashboardViewProps): React.JSX.Element {
   const [data, setData] = useState<DashboardDataResponse | null>(null);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [medications, setMedications] = useState<Medication[]>([]);
@@ -184,11 +185,11 @@ const fetchDashboard = async () => {
         {/* Card 1: Total Medications */}
         <div
           onClick={() => onNavigate && onNavigate('MedicationFrame')}
-          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+          className="glass-surface relative overflow-hidden rounded-2xl bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 p-4 sm:p-4.5 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#E0F2FE]/85 dark:text-[#0284C7]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#E0F2FE]/85 dark:text-[#0284C7]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -197,12 +198,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#E0F2FE] dark:bg-[#0c2a42] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#E0F2FE] dark:bg-[#0c2a42] flex items-center justify-center shrink-0">
             <Pill className="w-5 h-5 -rotate-45 text-[#0284C7] dark:text-[#38BDF8]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {total_meds}
             </h3>
@@ -212,17 +213,17 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#38BDF8] dark:text-[#38BDF8] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#38BDF8] dark:text-[#38BDF8] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
 
         {/* Card 2: Today's Doses */}
         <div
           onClick={() => onNavigate && onNavigate('IntakeFrame')}
-          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+          className="glass-surface relative overflow-hidden rounded-2xl bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 p-4 sm:p-4.5 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#CCFBF1]/85 dark:text-[#0D9488]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#CCFBF1]/85 dark:text-[#0D9488]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -231,12 +232,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#CCFBF1] dark:bg-[#0c3332] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#CCFBF1] dark:bg-[#0c3332] flex items-center justify-center shrink-0">
             <Calendar className="w-5 h-5 text-[#0D9488] dark:text-[#2DD4BF]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {totalDosesToday}
             </h3>
@@ -246,17 +247,17 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#2DD4BF] dark:text-[#2DD4BF] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#2DD4BF] dark:text-[#2DD4BF] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
 
         {/* Card 3: Taken */}
         <div
           onClick={() => onNavigate && onNavigate('HistoryFrame')}
-          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+          className="glass-surface relative overflow-hidden rounded-2xl bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 p-4 sm:p-4.5 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#DCFCE7]/85 dark:text-[#16A34A]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#DCFCE7]/85 dark:text-[#16A34A]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -265,12 +266,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#DCFCE7] dark:bg-[#0e3522] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#DCFCE7] dark:bg-[#0e3522] flex items-center justify-center shrink-0">
             <Check className="w-5 h-5 stroke-[2.5] text-[#16A34A] dark:text-[#4ADE80]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {takenCount}
             </h3>
@@ -280,17 +281,17 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#4ADE80] dark:text-[#4ADE80] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#4ADE80] dark:text-[#4ADE80] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
 
         {/* Card 4: Upcoming */}
         <div
           onClick={() => onNavigate && onNavigate('IntakeFrame')}
-          className="relative overflow-hidden rounded-2xl bg-white dark:bg-[#13222f] border border-[#E2E8F0] dark:border-[#1c3345] p-4 sm:p-4.5 shadow-2xs hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
+          className="glass-surface relative overflow-hidden rounded-2xl bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 p-4 sm:p-4.5 hover:shadow-md hover:-translate-y-0.5 transition-all flex items-center gap-3.5 cursor-pointer group select-none"
         >
           {/* Bottom-right decorative curved wave accent */}
           <svg
-            className="absolute bottom-0 right-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#FEF3C7]/85 dark:text-[#D97706]/15"
+            className="absolute bottom-0 right-0 z-0 w-36 sm:w-44 h-9 pointer-events-none select-none text-[#FEF3C7]/85 dark:text-[#D97706]/15"
             viewBox="0 0 180 40"
             fill="none"
             preserveAspectRatio="none"
@@ -299,12 +300,12 @@ const fetchDashboard = async () => {
           </svg>
 
           {/* Left: Circular Icon Avatar */}
-          <div className="w-12 h-12 rounded-full bg-[#FEF3C7] dark:bg-[#382b0e] flex items-center justify-center shrink-0 z-1">
+          <div className="relative z-10 w-12 h-12 rounded-full bg-[#FEF3C7] dark:bg-[#382b0e] flex items-center justify-center shrink-0">
             <Clock className="w-5 h-5 text-[#D97706] dark:text-[#FBBF24]" />
           </div>
 
           {/* Center: Number & Label */}
-          <div className="min-w-0 flex-1 z-1">
+          <div className="relative z-10 min-w-0 flex-1">
             <h3 className="text-xl sm:text-2xl font-black text-[#0F2942] dark:text-white tracking-tight leading-none">
               {upcomingCount}
             </h3>
@@ -314,14 +315,14 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Right: Sleek Arrow */}
-          <ArrowRight className="w-4 h-4 text-[#FBBF24] dark:text-[#FBBF24] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1 z-1" />
+          <ArrowRight className="relative z-10 w-4 h-4 text-[#FBBF24] dark:text-[#FBBF24] ml-auto shrink-0 transition-transform duration-200 group-hover:translate-x-1" />
         </div>
       </div>
 
       {/* 2. BOTTOM SECTION: Fully Responsive Desktop Layout */}
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-12 gap-4 sm:gap-5 items-stretch overflow-hidden">
         {/* Left Column: Today's Schedule Card (ONLY internal items list scrolls) */}
-        <div className="md:col-span-7 xl:col-span-7 2xl:col-span-8 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col h-full overflow-hidden">
+        <div className="glass-surface md:col-span-7 xl:col-span-7 2xl:col-span-8 bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-4 sm:p-5 flex flex-col h-full overflow-hidden">
           {/* Card Header (Fixed inside card, never scrolls) */}
           <div className="shrink-0 flex items-center justify-between pb-3 sm:pb-3.5 border-b border-[#E3E8EE] dark:border-[#1c3345] mb-3">
             <div className="flex items-center gap-2">
@@ -377,7 +378,7 @@ const fetchDashboard = async () => {
                 return (
                   <div
                     key={item.schedule_id || (item as any).med_id || idx}
-                    className="rounded-2xl border border-[#b8cbd9] dark:border-[#2b4154] bg-gradient-to-r from-[#d0dfec]/85 via-[#e0ebf3]/75 to-[#edf3f7]/90 dark:from-[#1b2f40] dark:via-[#162736] dark:to-[#13222f] p-3.5 sm:p-4 shadow-sm hover:shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group"
+                    className="glass-surface rounded-2xl border border-white/70 dark:border-white/10 bg-gradient-to-r from-[#d0dfec]/70 via-[#e0ebf3]/60 to-[#edf3f7]/75 dark:from-[#1b2f40]/75 dark:via-[#162736]/70 dark:to-[#13222f]/70 p-3.5 sm:p-4 hover:shadow-md transition-all flex flex-col gap-3 relative overflow-hidden group"
                   >
                     {/* Subtle medical cross & DNA helix watermark matching reference */}
                     <div className="absolute inset-0 pointer-events-none overflow-hidden flex items-center justify-center opacity-30 select-none">
@@ -493,7 +494,7 @@ const fetchDashboard = async () => {
         {/* Right Column: Quick Actions & Stay on Track (Responsive Desktop Layout, Non-Scrollable) */}
         <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
           {/* Card: Quick Actions */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3.5 shadow-sm space-y-2 shrink-0">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-3.5 space-y-2 shrink-0">
             <h3 className="text-xs font-bold text-[#1E2837] dark:text-white tracking-tight pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               Quick Actions
             </h3>
@@ -501,7 +502,7 @@ const fetchDashboard = async () => {
             <div className="space-y-1.5">
               <button
                 type="button"
-                onClick={() => onNavigate && onNavigate('MedicationFrame')}
+                onClick={onAddMedication}
                 className="w-full py-2 px-3.5 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-2"
               >
                 <Plus className="w-4 h-4" />
@@ -529,7 +530,7 @@ const fetchDashboard = async () => {
           </div>
 
           {/* Card: Stay on Track! (Fits naturally without overflow/scroll) */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-4 shadow-sm relative overflow-hidden flex flex-col items-center text-center flex-1 min-h-0 justify-between">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-3 sm:p-4 relative overflow-hidden flex flex-col items-center text-center flex-1 min-h-0 justify-between">
             {/* PICTURE DISPLAY */}
             <div className="w-full flex-1 min-h-0 flex items-center justify-center p-2 mb-2 bg-gradient-to-b from-[#2E7D7E]/5 via-[#2E7D7E]/2 to-transparent dark:from-[#2dd4bf]/10 dark:via-[#2dd4bf]/5 dark:to-transparent rounded-2xl border border-[#2E7D7E]/10 dark:border-[#2dd4bf]/10 overflow-hidden">
               <img

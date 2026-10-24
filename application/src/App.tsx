@@ -21,6 +21,7 @@ export default function App(): React.JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState<string>('DashboardFrame');
   const [dataRefreshKey, setDataRefreshKey] = useState<number>(0);
+  const [addMedicationRequest, setAddMedicationRequest] = useState<number>(0);
   const [activeAlert, setActiveAlert] = useState<DueAlert | null>(null);
   const [doseSuccessData, setDoseSuccessData] = useState<DoseSuccessData | null>(null);
   const [theme, setTheme] = useState<string>(() => {
@@ -129,6 +130,11 @@ export default function App(): React.JSX.Element {
     setDataRefreshKey((prev) => prev + 1);
   };
 
+  const handleOpenAddMedication = () => {
+    setActiveTab('MedicationFrame');
+    setAddMedicationRequest((prev) => prev + 1);
+  };
+
   if (appLoading) {
     return <AppLoadingScreen onFinish={() => setAppLoading(false)} />;
   }
@@ -138,7 +144,7 @@ export default function App(): React.JSX.Element {
   }
 
   return (
-    <div className="flex h-screen w-screen bg-[#F3F6F9] dark:bg-[#0c1722] text-[#1E2837] dark:text-white overflow-hidden select-none transition-colors duration-200">
+    <div className="flex h-screen w-screen bg-transparent text-[#1E2837] dark:text-white overflow-hidden select-none transition-colors duration-200">
       <Sidebar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -146,7 +152,7 @@ export default function App(): React.JSX.Element {
         onLogout={handleLogout}
       />
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#F3F6F9] dark:bg-[#0c1722]">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-transparent">
         <Header activeTab={activeTab} user={user} theme={theme} onToggleTheme={handleToggleTheme} />
 
         <main className="flex-1 overflow-hidden relative">
@@ -156,6 +162,7 @@ export default function App(): React.JSX.Element {
                 user={user}
                 onDataChange={handleDataChange}
                 onNavigate={setActiveTab}
+                onAddMedication={handleOpenAddMedication}
                 refreshKey={dataRefreshKey}
               />
             </div>
@@ -166,6 +173,7 @@ export default function App(): React.JSX.Element {
                 user={user}
                 onDataChange={handleDataChange}
                 refreshKey={dataRefreshKey}
+                addModalRequest={addMedicationRequest}
               />
             </div>
           )}

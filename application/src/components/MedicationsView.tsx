@@ -25,6 +25,7 @@ interface MedicationsViewProps {
   user: User | null;
   onDataChange?: () => void;
   refreshKey?: number;
+  addModalRequest?: number;
 }
 
 interface StatusMsg {
@@ -34,7 +35,7 @@ interface StatusMsg {
 
 type StockFilterType = 'ALL' | 'IN_STOCK' | 'LOW_STOCK';
 
-export default function MedicationsView({ user, onDataChange, refreshKey }: MedicationsViewProps): React.JSX.Element {
+export default function MedicationsView({ user, onDataChange, refreshKey, addModalRequest = 0 }: MedicationsViewProps): React.JSX.Element {
   const [medications, setMedications] = useState<Medication[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -82,6 +83,13 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
   useEffect(() => {
     fetchMeds();
   }, [user, refreshKey]);
+
+  useEffect(() => {
+    if (addModalRequest > 0) {
+      setFormMsg({ text: '', isError: false });
+      setShowAddModal(true);
+    }
+  }, [addModalRequest]);
 
   // Close card action menu when clicking outside
   useEffect(() => {
@@ -338,17 +346,17 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
   return (
     <div className="p-4 sm:p-6 lg:p-7 flex flex-col h-full overflow-hidden transition-colors duration-200">
       {/* 1. STICKY TOP BAR: Search + Filter Chips + Add Medication */}
-      <div className="shrink-0 pb-4 mb-4 border-b border-[#E3E8EE] dark:border-[#1c3345] bg-[#F3F6F9] dark:bg-[#0c1722] z-10">
+      <div className="glass-surface shrink-0 pb-4 mb-4 border border-white/70 dark:border-white/10 rounded-2xl px-4 pt-4 bg-white/95 dark:bg-[#13222f]/95 z-10">
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
           {/* Search Input Box */}
           <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8B9DA8]" />
+            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2E7D7E] dark:text-[#2dd4bf]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search medication stocks by name, batch, strength..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
+              className="glass-control w-full pl-10 pr-4 py-2.5 bg-white/65 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-xl text-xs text-[#1E2837] dark:text-white placeholder-[#8B9DA8] focus:outline-none focus:border-[#2E7D7E] dark:focus:border-[#2dd4bf] shadow-xs transition-all"
             />
             {searchTerm && (
               <button
@@ -364,13 +372,13 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
           {/* Filter Pills & Add Medication Button */}
           <div className="flex items-center gap-3 self-end sm:self-auto">
             {/* Quick Filter Segment */}
-            <div className="inline-flex p-1 bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-xl gap-1 text-xs font-semibold">
+            <div className="glass-control inline-flex p-1 bg-white/65 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-xl gap-1 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setStockFilter('ALL')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   stockFilter === 'ALL'
-                    ? 'bg-[#EBF5F5] dark:bg-[#183641] text-[#2E7D7E] dark:text-[#2dd4bf]'
+                    ? 'bg-[#EBF5F5]/85 dark:bg-[#183641]/90 text-[#2E7D7E] dark:text-[#2dd4bf]'
                     : 'text-[#8B9DA8] hover:text-[#1E2837]'
                 }`}
               >
@@ -381,7 +389,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                 onClick={() => setStockFilter('IN_STOCK')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   stockFilter === 'IN_STOCK'
-                    ? 'bg-[#E6F8F2] dark:bg-[#133833] text-[#0D9488] dark:text-[#2dd4bf]'
+                    ? 'bg-[#E6F8F2]/85 dark:bg-[#133833]/90 text-[#0D9488] dark:text-[#2dd4bf]'
                     : 'text-[#8B9DA8] hover:text-[#1E2837]'
                 }`}
               >
@@ -392,7 +400,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                 onClick={() => setStockFilter('LOW_STOCK')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${
                   stockFilter === 'LOW_STOCK'
-                    ? 'bg-[#FEF3E2] dark:bg-[#3d2716] text-[#E08A1E] dark:text-[#f59e0b]'
+                    ? 'bg-[#FEF3E2]/85 dark:bg-[#3d2716]/90 text-[#E08A1E] dark:text-[#f59e0b]'
                     : 'text-[#8B9DA8] hover:text-[#1E2837]'
                 }`}
               >
@@ -407,7 +415,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                 setFormMsg({ text: '', isError: false });
                 setShowAddModal(true);
               }}
-              className="py-2.5 px-4 bg-[#2E7D7E] hover:bg-[#26696a] text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 shrink-0"
+              className="glass-control py-2.5 px-4 bg-[#2E7D7E]/90 hover:bg-[#26696a]/90 text-white font-semibold text-xs rounded-xl shadow-sm transition-all flex items-center gap-2 shrink-0"
             >
               <Plus className="w-4 h-4" />
               <span>Add Medication</span>
@@ -455,7 +463,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                 return (
                   <div
                     key={med.med_id}
-                    className="bg-white dark:bg-[#13222f] border border-[#E9EFF4] dark:border-[#1c3345] rounded-3xl p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.03)] hover:shadow-md transition-all flex flex-col justify-between gap-4 relative group"
+                    className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-3xl p-4 sm:p-5 hover:shadow-md transition-all flex flex-col justify-between gap-4 relative group"
                   >
                     {/* Top Section: Photo on Left + Spec/Quantity Info on Right */}
                     <div className="flex items-start gap-3 sm:gap-4">
@@ -663,8 +671,8 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
         {/* RIGHT COLUMN: FIXED PICTURE & INVENTORY GUIDELINES (IDENTICAL TO INTAKE & SETTINGS) */}
         <div className="md:col-span-5 xl:col-span-5 2xl:col-span-4 flex flex-col gap-3 shrink-0 h-full overflow-hidden">
           {/* Card 1: Medical Stock Visual & Quote Card */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center flex-1 min-h-0 justify-between overflow-hidden shrink-0">
-            <div className="w-full flex-1 min-h-0 rounded-2xl overflow-hidden relative shadow-sm max-h-[190px] sm:max-h-[220px] 2xl:max-h-[260px] mb-2">
+          <div className="glass-surface bg-white/80 dark:bg-[#13222f]/85 border border-white/80 dark:border-white/10 rounded-2xl p-3 sm:p-3.5 shadow-sm flex flex-col items-center text-center gap-3 overflow-hidden shrink-0">
+            <div className="w-full h-[170px] sm:h-[190px] 2xl:h-[220px] rounded-2xl overflow-hidden relative shadow-sm shrink-0">
               <img
                 src="/assets/medication_stock_art.jpg"
                 alt="Prescription stock and pharmacy supplies"
@@ -677,7 +685,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
               </div>
             </div>
 
-            <div className="shrink-0 space-y-0.5">
+            <div className="shrink-0 space-y-1">
               <h3 className="text-xs font-bold text-[#1E2837] dark:text-white font-serif italic text-[#2E7D7E] dark:text-[#2dd4bf]">
                 Stock Well, Never Miss a Dose ♡
               </h3>
@@ -688,7 +696,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
           </div>
 
           {/* Card 2: Inventory Safety & Organization Guidelines */}
-          <div className="bg-white dark:bg-[#13222f] border border-[#E3E8EE] dark:border-[#1c3345] rounded-2xl p-3 sm:p-3.5 shadow-sm space-y-2 shrink-0">
+          <div className="glass-surface bg-white/75 dark:bg-[#13222f]/75 border border-white/80 dark:border-white/10 rounded-2xl p-3 sm:p-3.5 space-y-2 shrink-0">
             <div className="flex items-center gap-2 pb-1.5 border-b border-[#E3E8EE] dark:border-[#1c3345]">
               <div className="w-6 h-6 rounded-lg bg-teal-50 dark:bg-teal-500/10 text-[#2E7D7E] dark:text-[#2dd4bf] flex items-center justify-center">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -710,9 +718,9 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
       {/* REGISTER NEW DRUG MODAL */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="w-full max-w-[780px] lg:max-w-[880px] xl:max-w-[960px] my-auto max-h-[92vh] bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 md:grid-cols-12 animate-fadeIn">
+          <div className="w-full max-w-[780px] lg:max-w-[880px] xl:max-w-[960px] my-auto max-h-[92vh] bg-white dark:bg-[#131d27] border border-[#E3E8EE] dark:border-[#223142] rounded-3xl shadow-2xl overflow-hidden grid grid-cols-1 lg:grid-cols-12 animate-fadeIn">
             {/* Form Side (7 cols) */}
-            <form onSubmit={handleAddMedication} className="md:col-span-7 p-6 sm:p-8 flex flex-col justify-between space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
+            <form onSubmit={handleAddMedication} className="lg:col-span-7 min-w-0 p-4 sm:p-6 lg:p-8 flex flex-col justify-between space-y-4 max-h-[92vh] overflow-y-auto custom-scrollbar">
               <div>
                 {/* Modal Header */}
                 <div className="flex items-center justify-between pb-3 border-b border-[#E3E8EE] dark:border-[#1e2d3d] mb-4">
@@ -782,7 +790,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
 
                   {/* Row: Medicine Strength & Type of Medicine */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
                         Medicine Strength
                       </label>
@@ -794,7 +802,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                           value={strengthVal}
                           onChange={(e) => setStrengthVal(e.target.value)}
                           placeholder="500"
-                          className="flex-1 px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
+                          className="min-w-0 flex-1 px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
                         />
                         <select
                           value={strengthUnit}
@@ -833,7 +841,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
 
                   {/* Row: How Many Do You Have? & Alert Me When Stock Reaches */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
                         Quantity in Stock
                       </label>
@@ -845,12 +853,12 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                           value={stock}
                           onChange={(e) => setStock(e.target.value)}
                           placeholder="30"
-                          className="flex-1 px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
+                          className="min-w-0 flex-1 px-3.5 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 transition-all"
                         />
                         <select
                           value={stockUnit}
                           onChange={(e) => setStockUnit(e.target.value)}
-                          className="w-28 px-3 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer"
+                          className="w-28 shrink-0 px-3 py-2.5 bg-[#F3F6F9] dark:bg-[#182635] border border-[#E3E8EE] dark:border-[#26374a] rounded-xl text-xs text-[#1E2837] dark:text-white focus:outline-none focus:border-purple-500 cursor-pointer"
                         >
                           <option value="tablets" className="dark:bg-[#131d27]">tablets</option>
                           <option value="capsules" className="dark:bg-[#131d27]">capsules</option>
@@ -863,7 +871,7 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
                       </div>
                     </div>
 
-                    <div>
+                    <div className="min-w-0">
                       <label className="block text-xs font-semibold text-[#1E2837] dark:text-white mb-1.5">
                         Alert When Stock Reaches
                       </label>
@@ -991,14 +999,14 @@ export default function MedicationsView({ user, onDataChange, refreshKey }: Medi
             </form>
 
             {/* Artwork Side (5 cols) */}
-            <div className="hidden md:block md:col-span-5 relative min-h-[380px] lg:min-h-[460px] bg-gradient-to-br from-[#E2F0EF] to-[#D5EAE9] dark:from-[#112733] dark:to-[#0a1822] overflow-hidden">
+            <div className="hidden lg:block lg:col-span-5 relative min-h-[460px] bg-gradient-to-br from-[#E2F0EF] to-[#D5EAE9] dark:from-[#112733] dark:to-[#0a1822] overflow-hidden">
               <img
                 src="/assets/medication_stock_art.jpg"
                 alt="Medication pharmacy stock"
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
-              <div className="absolute top-6 right-6 max-w-[170px] text-right">
-                <p className="text-xs font-medium text-[#2E7D7E] dark:text-[#2dd4bf] italic font-serif leading-snug">
+              <div className="absolute top-8 right-8 max-w-[240px] text-right">
+                <p className="inline-block rounded-xl border border-white/30 bg-black/55 px-3 py-2 text-sm sm:text-base font-semibold text-white italic drop-shadow-sm font-serif leading-snug shadow-lg backdrop-blur-sm">
                   Stock Well, Never Miss a Dose ♡
                 </p>
               </div>

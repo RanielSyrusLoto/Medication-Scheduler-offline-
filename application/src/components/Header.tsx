@@ -66,7 +66,7 @@ export default function Header({ activeTab, user, theme = 'light', onToggleTheme
   const meta = getHeaderMeta();
 
   return (
-    <header className="flex items-center justify-between px-4 sm:px-6 lg:px-7 py-3 sm:py-4 bg-white dark:bg-[#13222f] border-b border-[#E3E8EE] dark:border-[#1c3345] transition-colors duration-200 shrink-0">
+    <header className="glass-surface flex items-center justify-between px-4 sm:px-6 lg:px-7 py-3 sm:py-4 bg-white/95 dark:bg-[#13222f]/95 border-b border-white/70 dark:border-white/10 transition-colors duration-200 shrink-0">
       <div className="min-w-0 pr-4">
         <h1 className="text-lg sm:text-xl font-bold text-[#1E2837] dark:text-white tracking-tight truncate">
           {meta.title}

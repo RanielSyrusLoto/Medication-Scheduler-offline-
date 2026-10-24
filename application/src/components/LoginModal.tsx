@@ -178,7 +178,7 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
         {/* Left Side: Form */}
         <div className="p-8 sm:p-10 flex flex-col justify-center">
           {/* Logo & Header */}
-          <div className="flex items-center gap-3.5 mb-7">
+          <div className="flex flex-col items-center text-center gap-3.5 mb-7">
             <img
               src="/app_icon.png"
               alt="Smart Medication Scheduler"
@@ -421,7 +421,7 @@ export default function LoginModal({ onLoginSuccess }: LoginModalProps): React.J
 
           {/* Inspirational Tag matching reference */}
           <div className="absolute top-8 right-8 max-w-[240px] text-right">
-            <p className="text-sm sm:text-base font-medium text-[#2E7D7E] dark:text-[#2dd4bf] italic drop-shadow-sm font-serif">
+            <p className="inline-block rounded-xl border border-white/30 bg-black/55 px-3 py-2 text-sm sm:text-base font-semibold text-white italic drop-shadow-sm font-serif leading-snug shadow-lg backdrop-blur-sm">
               Small steps today, healthier tomorrow ♡
             </p>
           </div>
