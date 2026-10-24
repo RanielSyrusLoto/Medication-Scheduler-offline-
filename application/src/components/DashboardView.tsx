@@ -166,10 +166,30 @@ const fetchDashboard = async () => {
   });
   const todayScheduleItems = sortSchedulesByDeadline(validSchedules, data?.today_logs);
 
+  // Helper to check if a schedule item has been taken today
+  const isItemTakenToday = (item: any): boolean => {
+    if (item.today_status === 'TAKEN') return true;
+    if (data?.today_logs && data.today_logs.length > 0) {
+      return data.today_logs.some((l) => l.med_id === item.med_id && l.status === 'TAKEN');
+    }
+    return false;
+  };
+
   // Compute stats for the 4 top cards
-  const totalDosesToday = validSchedules.length > 0 ? validSchedules.length : (due_meds.length + doses_taken);
-  const takenCount = doses_taken > 0 ? doses_taken : 0;
-  const upcomingCount = Math.max(0, due_meds.length > 0 ? due_meds.length : (totalDosesToday - takenCount));
+  // 1. Total scheduled doses for today
+  const totalDosesToday = validSchedules.length > 0
+    ? validSchedules.length
+    : ((due_meds.length || 0) + (data?.today_logs?.filter((l) => l.status === 'TAKEN').length || 0));
+
+  // 2. Doses taken today
+  const takenFromSchedules = validSchedules.filter(isItemTakenToday).length;
+  const takenFromTodayLogs = (data?.today_logs || []).filter((l) => l.status === 'TAKEN').length;
+  const takenCount = validSchedules.length > 0 ? takenFromSchedules : takenFromTodayLogs;
+
+  // 3. Upcoming doses for today (active today but not yet taken)
+  const upcomingCount = validSchedules.length > 0
+    ? validSchedules.filter((item) => !isItemTakenToday(item)).length
+    : Math.max(0, totalDosesToday - takenCount);
 
   const colorPalettes = [
     { circle: 'bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400', border: 'border-emerald-200 dark:border-emerald-500/30' },
@@ -419,10 +439,15 @@ const fetchDashboard = async () => {
                         </div>
                       ) : (
                         <div className="flex items-center gap-1.5 shrink-0">
-                          {todayStatus === 'MISSED' && (
+                          {todayStatus === 'MISSED' ? (
                             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/40 text-[11px] font-bold text-rose-600 dark:text-rose-400 shadow-2xs whitespace-nowrap">
                               <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
                               <span>Missed</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-700/40 text-[11px] font-semibold text-amber-700 dark:text-amber-300 shadow-2xs whitespace-nowrap">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Upcoming</span>
                             </span>
                           )}
                           <button
